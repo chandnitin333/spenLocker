@@ -1,0 +1,39 @@
+name: Build Windows installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install WiX Toolset (required by jpackage for --type exe)
+        shell: pwsh
+        run: |
+          choco install wixtoolset -y
+          # Installer updates PATH via the registry, but that doesn't reach this already-running
+          # job process — find candle.exe and add its folder to PATH for the remaining steps.
+          $wixBin = Get-ChildItem "C:\Program Files (x86)\WiX Toolset*\bin" -Directory -ErrorAction SilentlyContinue |
+                    Select-Object -First 1 -ExpandProperty FullName
+          if (-not $wixBin) { throw "WiX Toolset bin folder not found after install" }
+          Add-Content -Path $env:GITHUB_PATH -Value $wixBin
+
+      - name: Build installer
+        shell: pwsh
+        run: .\packaging\build-windows.ps1
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SpendLocker-windows-installer
+          path: packaging/dist/windows/*.exe

@@ -1,0 +1,7 @@
+target/
+packaging/dist/
+packaging/icon/icon.iconset/
+.DS_Store
+*.log
+.idea/
+*.iml
