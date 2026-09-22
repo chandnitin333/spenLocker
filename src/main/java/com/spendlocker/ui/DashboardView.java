@@ -5,6 +5,7 @@ import com.spendlocker.dao.ExpenseDao;
 import com.spendlocker.dao.FixedDepositDao;
 import com.spendlocker.dao.InvestmentDao;
 import com.spendlocker.model.FixedDeposit;
+import com.spendlocker.util.FinancialYear;
 import com.spendlocker.util.FixedDepositCalculator;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -12,6 +13,7 @@ import javafx.scene.chart.BarChart;
 import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.FlowPane;
@@ -42,6 +44,7 @@ public class DashboardView extends VBox {
     private final FixedDepositDao fixedDepositDao = new FixedDepositDao();
     private final Consumer<String> onInvestmentTypeDrilldown;
     private final Consumer<String> onBankDrilldown;
+    private String selectedFinancialYear = FinancialYear.labelFor(LocalDate.now());
 
     /**
      * @param onInvestmentTypeDrilldown called with an investment type when a by-kind card is
@@ -66,9 +69,17 @@ public class DashboardView extends VBox {
         Label asAtLabel = new Label("As at " + LocalDate.now().format(DateTimeFormatter.ofPattern("d MMM yyyy")));
         asAtLabel.getStyleClass().add("text-caption");
 
+        ComboBox<String> fyFilter = new ComboBox<>(javafx.collections.FXCollections.observableArrayList(financialYearOptions()));
+        fyFilter.setValue(selectedFinancialYear);
+        fyFilter.setOnAction(e -> {
+            selectedFinancialYear = fyFilter.getValue();
+            refresh();
+        });
+
         Region titleSpacer = new Region();
         HBox.setHgrow(titleSpacer, Priority.ALWAYS);
-        HBox titleRow = new HBox(10, title, titleSpacer, asAtLabel);
+        HBox titleRow = new HBox(10, title, titleSpacer, asAtLabel,
+                new Label("View:", new FontIcon(Feather.CALENDAR)), fyFilter);
         titleRow.setAlignment(Pos.CENTER_LEFT);
         titleRow.getStyleClass().add("page-header");
         titleRow.setPadding(new Insets(0, 0, 12, 0));
@@ -77,9 +88,10 @@ public class DashboardView extends VBox {
 
         // hero (KPIs) -> bank concentration -> maturity runway -> next-out -> everything you
         // track, by kind -> what-needs-attention: the reference design's own page flow,
-        // confirmed by rendering wealth-book.html itself.
+        // confirmed by rendering wealth-book.html itself. The runway is the one section that
+        // respects the FY filter — the rest ("what's true right now") stays as-at-today.
         getChildren().addAll(titleRow, buildStatCards(allDeposits), buildBankConcentration(allDeposits),
-                buildMaturityRunway(allDeposits));
+                buildMaturityRunway(allDeposits, selectedFinancialYear));
         VBox nextUp = buildNextUp(allDeposits);
         if (nextUp != null) {
             getChildren().add(nextUp);
@@ -201,25 +213,31 @@ public class DashboardView extends VBox {
         return section;
     }
 
-    private static final int RUNWAY_MONTHS = 18;
+    /** The 12 months of the selected financial year (April-March), matched against the
+     *  chosen FY dropdown value — matches the current FY by default. */
+    private List<String> financialYearOptions() {
+        int currentStartYear = Integer.parseInt(FinancialYear.labelFor(LocalDate.now()).substring(3, 7));
+        List<String> labels = new java.util.ArrayList<>();
+        for (int offset = 6; offset >= -2; offset--) {
+            labels.add(FinancialYear.label(currentStartYear + offset));
+        }
+        return labels;
+    }
 
-    /** 18 months of FD maturities as a bar+cumulative-line chart, urgency-colored per month by
-     *  its earliest deposit — the reference's "Maturity runway" exactly. */
-    private VBox buildMaturityRunway(List<FixedDeposit> allDeposits) {
-        List<FixedDeposit> active = allDeposits.stream()
-                .filter(fd -> FixedDepositCalculator.isActive(fd.getMaturityDate()))
-                .toList();
-
-        YearMonth base = YearMonth.now();
+    /** FD maturities across the selected financial year's 12 months, as a bar+cumulative-line
+     *  chart urgency-colored per month by its earliest deposit — the reference's "Maturity
+     *  runway" exactly, scoped to whichever FY the dropdown has selected. */
+    private VBox buildMaturityRunway(List<FixedDeposit> allDeposits, String financialYear) {
+        LocalDate fyStart = FinancialYear.startOf(financialYear);
         List<YearMonth> months = new java.util.ArrayList<>();
-        for (int i = 0; i < RUNWAY_MONTHS; i++) months.add(base.plusMonths(i));
+        for (int i = 0; i < 12; i++) months.add(YearMonth.from(fyStart.plusMonths(i)));
 
-        double[] totals = new double[RUNWAY_MONTHS];
-        Long[] minDays = new Long[RUNWAY_MONTHS];
-        for (FixedDeposit fd : active) {
+        double[] totals = new double[12];
+        Long[] minDays = new Long[12];
+        for (FixedDeposit fd : allDeposits) {
             YearMonth maturityMonth = YearMonth.from(LocalDate.parse(fd.getMaturityDate()));
             int idx = months.indexOf(maturityMonth);
-            if (idx < 0) continue; // outside the 18-month window
+            if (idx < 0) continue; // outside the selected financial year
             totals[idx] += FixedDepositCalculator.maturityAmount(fd);
             Long daysLeft = FixedDepositCalculator.daysLeft(fd.getMaturityDate());
             if (minDays[idx] == null || daysLeft < minDays[idx]) minDays[idx] = daysLeft;
@@ -228,15 +246,16 @@ public class DashboardView extends VBox {
         List<Double> values = new java.util.ArrayList<>();
         List<String> labels = new java.util.ArrayList<>();
         List<Color> colors = new java.util.ArrayList<>();
-        for (int i = 0; i < RUNWAY_MONTHS; i++) {
+        for (int i = 0; i < 12; i++) {
             values.add(totals[i]);
             labels.add(months.get(i).getMonth().getDisplayName(TextStyle.SHORT, Locale.getDefault()));
             Long d = minDays[i];
             colors.add(d == null ? Color.web("#2C7A6E")
+                    : d < 0 ? Color.web("#556661")
                     : d <= 30 ? Color.web("#A32D2D") : d <= 90 ? Color.web("#9A6A12") : Color.web("#2C7A6E"));
         }
 
-        double sixMonthTotal = values.subList(0, Math.min(6, values.size())).stream().mapToDouble(Double::doubleValue).sum();
+        double fyTotal = values.stream().mapToDouble(Double::doubleValue).sum();
 
         RunwayChart chart = new RunwayChart();
         chart.setPrefHeight(220);
@@ -244,11 +263,11 @@ public class DashboardView extends VBox {
         String symbol = NumberFormat.getCurrencyInstance(new Locale("en", "IN")).getCurrency().getSymbol();
         chart.setData(labels, values, symbol, colors);
 
-        Label heading = new Label("Maturity runway");
+        Label heading = new Label("Maturity runway (" + financialYear + ")");
         heading.getStyleClass().add("title-3");
-        Label readout = new Label(sixMonthTotal > 0
-                ? String.format("%s back in the next six months", currency(sixMonthTotal))
-                : "Nothing matures in the next six months");
+        Label readout = new Label(fyTotal > 0
+                ? String.format("%s maturing across %s", currency(fyTotal), financialYear)
+                : "Nothing matures in " + financialYear);
         readout.getStyleClass().add("text-caption");
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
