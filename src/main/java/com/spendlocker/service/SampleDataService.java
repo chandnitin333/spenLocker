@@ -12,6 +12,7 @@ import com.spendlocker.model.PaymentMethod;
 import com.spendlocker.model.TenureUnit;
 
 import java.time.LocalDate;
+import java.util.List;
 
 /** Inserts realistic sample rows across every category/type, for trying out the app. */
 public class SampleDataService {
@@ -96,9 +97,11 @@ public class SampleDataService {
     }
 
     /**
-     * ~40 deposits across 5 depositors and 8 banks with varied rates/tenures/maturity dates —
-     * some maturing within 30/90 days, several already matured, one zero-rate (exercises the
-     * "add rate" tag), a couple paid-out periodically (interest never compounds).
+     * ~40 deposits across 5 depositors and 8 banks with varied rates/tenures/maturity dates,
+     * deliberately spanning the last 2 calendar years through 3 years out (so year-based views
+     * like Interest by year have several years of real data, not just the current one) — some
+     * maturing within 30/90 days, several already matured, one zero-rate (exercises the "add
+     * rate" tag), a couple paid-out periodically (interest never compounds).
      */
     private int seedFixedDeposits() {
         LocalDate today = LocalDate.now();
@@ -113,17 +116,20 @@ public class SampleDataService {
         };
         double[] rates = {8.47, 7.10, 6.30, 7.75, 6.90, 5.50, 8.00, 7.25, 6.65, 7.90};
         int[] tenureMonths = {12, 18, 24, 6, 36, 9, 15, 48, 30, 21};
-        // Maturity offsets in days from today: within-30, within-90, further out, and matured.
-        int[] maturityOffsets = {
-            11, 14, 31, 45, 71, 87, 105, 140, 175, 210,
-            250, 300, 340, 380, 420, 460, 500, 540, 580, 620,
-            -10, -40, -90, -150, -200,
-            3, 20, 60, 80, 95, 130, 160, 190, 220, 260,
-            300, 330, -5, -60, 25
-        };
+
+        List<LocalDate> maturities = new java.util.ArrayList<>();
+        // Near-term precision within the current year: within 30/90 days, some already matured.
+        int[] nearDays = {11, 14, 31, 45, 71, 87, 105, 140, 175, 210, -10, -40, -90, 3, 20, 60, 80, 95, 25, -5};
+        for (int d : nearDays) maturities.add(today.plusDays(d));
+        // Broader spread: last 2 calendar years through 3 years out, so Interest by year, Banks
+        // and Net worth all have multiple years of real (not just this-year) data to show.
+        int[] monthOffsets = {-30, -27, -24, -21, -18, -15, -12, -9, -6, -3, 6, 9, 12, 15, 18, 21, 24, 28, 32, 36, 40};
+        for (int i = 0; i < monthOffsets.length; i++) {
+            maturities.add(today.plusMonths(monthOffsets[i]).plusDays((i * 7) % 28));
+        }
 
         int inserted = 0;
-        for (int i = 0; i < maturityOffsets.length; i++) {
+        for (int i = 0; i < maturities.size(); i++) {
             FixedDeposit fd = new FixedDeposit();
             fd.setDepositor(depositors[i % depositors.length]);
             fd.setBank(banks[i % banks.length]);
@@ -135,7 +141,7 @@ public class SampleDataService {
             fd.setTenureUnit(TenureUnit.MONTHS);
             fd.setCompounding(i % 9 == 0 ? Compounding.SIMPLE : Compounding.QUARTERLY);
             fd.setPayout(i == 3 || i == 19 ? InterestPayout.PAID_OUT : InterestPayout.CUMULATIVE);
-            LocalDate maturity = today.plusDays(maturityOffsets[i]);
+            LocalDate maturity = maturities.get(i);
             LocalDate start = maturity.minusMonths(tenure);
             fd.setStartDate(start.toString());
             fd.setMaturityDate(maturity.toString());

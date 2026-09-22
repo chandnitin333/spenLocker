@@ -41,10 +41,36 @@ public class DepositFormDialog {
         ComboBox<String> depositorField = new ComboBox<>(FXCollections.observableArrayList(fixedDepositDao.distinctDepositors()));
         depositorField.setEditable(true);
         depositorField.setValue(editing ? existing.getDepositor() : "");
+        HBox.setHgrow(depositorField, Priority.ALWAYS);
+        Button addDepositorButton = new Button(null, new FontIcon(Feather.PLUS_CIRCLE));
+        addDepositorButton.getStyleClass().add("icon-button");
+        addDepositorButton.setTooltip(new Tooltip("Add a new depositor"));
+        addDepositorButton.setOnAction(e -> QuickAddDialog.prompt("Add Depositor", "Depositor's full name:")
+                .ifPresent(name -> {
+                    if (depositorField.getItems().stream().noneMatch(existingName -> existingName.equalsIgnoreCase(name))) {
+                        depositorField.getItems().add(name);
+                    }
+                    depositorField.setValue(name);
+                }));
+        HBox depositorRow = new HBox(8, depositorField, addDepositorButton);
+        depositorRow.setAlignment(Pos.CENTER_LEFT);
 
         ComboBox<String> bankField = new ComboBox<>(FXCollections.observableArrayList(fixedDepositDao.distinctBanks()));
         bankField.setEditable(true);
         bankField.setValue(editing ? existing.getBank() : "");
+        HBox.setHgrow(bankField, Priority.ALWAYS);
+        Button addBankButton = new Button(null, new FontIcon(Feather.PLUS_CIRCLE));
+        addBankButton.getStyleClass().add("icon-button");
+        addBankButton.setTooltip(new Tooltip("Add a new bank"));
+        addBankButton.setOnAction(e -> QuickAddDialog.prompt("Add Bank", "Bank or NBFC's full name:")
+                .ifPresent(name -> {
+                    if (bankField.getItems().stream().noneMatch(existingName -> existingName.equalsIgnoreCase(name))) {
+                        bankField.getItems().add(name);
+                    }
+                    bankField.setValue(name);
+                }));
+        HBox bankRow = new HBox(8, bankField, addBankButton);
+        bankRow.setAlignment(Pos.CENTER_LEFT);
 
         TextField fdNumberField = new TextField(editing ? existing.getFdNumber() : "");
         TextField principalField = new TextField(editing ? String.valueOf(existing.getPrincipal()) : "");
@@ -143,8 +169,8 @@ public class DepositFormDialog {
         grid.getColumnConstraints().addAll(labelColumn, fieldColumn);
 
         int row = 0;
-        grid.addRow(row++, fieldLabel("Depositor:", "Who this deposit belongs to."), depositorField);
-        grid.addRow(row++, fieldLabel("Bank:", "The bank or NBFC holding this deposit."), bankField);
+        grid.addRow(row++, fieldLabel("Depositor:", "Who this deposit belongs to."), depositorRow);
+        grid.addRow(row++, fieldLabel("Bank:", "The bank or NBFC holding this deposit."), bankRow);
         grid.addRow(row++, fieldLabel("Principal (₹):", "The amount deposited."), principalField);
         grid.addRow(row++, fieldLabel("Rate of interest (% p.a.):", "Annual interest rate."), rateField);
         grid.addRow(row++, fieldLabel("FD / receipt number:", "Tells two identical deposits apart."), fdNumberField);
