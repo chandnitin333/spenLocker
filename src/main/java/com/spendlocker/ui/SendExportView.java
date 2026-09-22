@@ -15,7 +15,6 @@ import com.spendlocker.util.MoneyFormat;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
@@ -52,9 +51,9 @@ public class SendExportView extends BorderPane {
     private final RecurringExpenseDao recurringExpenseDao = new RecurringExpenseDao();
     private final ExcelExportService excelExportService = new ExcelExportService();
 
-    private final CheckBox depositsChip = new CheckBox("Fixed deposit");
-    private final CheckBox investmentsChip = new CheckBox("Investments");
-    private final CheckBox expensesChip = new CheckBox("Expense");
+    private final javafx.scene.control.ToggleButton depositsChip = new javafx.scene.control.ToggleButton("Fixed deposit");
+    private final javafx.scene.control.ToggleButton investmentsChip = new javafx.scene.control.ToggleButton("Investments");
+    private final javafx.scene.control.ToggleButton expensesChip = new javafx.scene.control.ToggleButton("Expense");
     private final Label downloadStatus = new Label();
     private final Label mailHint = new Label();
     private final TextArea summaryArea = new TextArea();
@@ -90,9 +89,9 @@ public class SendExportView extends BorderPane {
     }
 
     private VBox buildLeftColumn() {
-        for (CheckBox chip : List.of(depositsChip, investmentsChip, expensesChip)) {
+        for (javafx.scene.control.ToggleButton chip : List.of(depositsChip, investmentsChip, expensesChip)) {
             chip.setSelected(true);
-            chip.getStyleClass().add("tag");
+            chip.getStyleClass().add("chip-toggle");
         }
         Label chipsHeading = new Label("Choose what to include");
         chipsHeading.getStyleClass().add("title-3");

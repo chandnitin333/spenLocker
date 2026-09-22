@@ -56,10 +56,11 @@ public class InvestmentsView extends BorderPane {
     private final TableView<Investment> table = new TableView<>();
     private final ObservableList<Investment> data = FXCollections.observableArrayList();
     private final FilteredList<Investment> filteredData = new FilteredList<>(data, i -> true);
-    private final ComboBox<String> typeFilter = new ComboBox<>();
+    private final javafx.scene.layout.FlowPane typeChips = new javafx.scene.layout.FlowPane(8, 8);
     private final ComboBox<String> dateRangeFilter = new ComboBox<>();
     private final TextField searchField = new TextField();
     private final VBox kpiStripBox = new VBox();
+    private String selectedType = ALL_TYPES;
 
     public InvestmentsView() {
         setPadding(new Insets(24));
@@ -88,9 +89,6 @@ public class InvestmentsView extends BorderPane {
         toolbar.getStyleClass().add("page-header");
         toolbar.setPadding(new Insets(0, 0, 12, 0));
 
-        typeFilter.setValue(ALL_TYPES);
-        typeFilter.setOnAction(e -> applyFilters());
-
         dateRangeFilter.getItems().addAll(ALL_TIME, THIS_WEEK, THIS_MONTH, THIS_YEAR);
         dateRangeFilter.getItems().addAll(FinancialYear.recentLabels(PRIOR_FINANCIAL_YEARS_SHOWN));
         dateRangeFilter.setValue(ALL_TIME);
@@ -102,14 +100,14 @@ public class InvestmentsView extends BorderPane {
         searchField.textProperty().addListener((obs, old, val) -> applyFilters());
 
         HBox filterBar = new HBox(10, searchField,
-                new Label("Category:", new FontIcon(Feather.FILTER)), typeFilter,
                 new Label("Purchased:"), dateRangeFilter);
         filterBar.setAlignment(Pos.CENTER_LEFT);
-        filterBar.setPadding(new Insets(0, 0, 16, 0));
+        filterBar.setPadding(new Insets(0, 0, 12, 0));
 
+        typeChips.setPadding(new Insets(0, 0, 16, 0));
         kpiStripBox.setPadding(new Insets(0, 0, 16, 0));
 
-        VBox header = new VBox(toolbar, kpiStripBox, filterBar);
+        VBox header = new VBox(toolbar, kpiStripBox, filterBar, typeChips);
 
         buildColumns();
         table.setItems(filteredData);
@@ -142,18 +140,37 @@ public class InvestmentsView extends BorderPane {
     public void refresh() {
         data.setAll(investmentDao.findAll());
         refreshKpiStrip();
+        refreshTypeChips();
+        applyFilters();
+    }
 
-        java.util.Set<String> types = new java.util.LinkedHashSet<>();
+    /** The reference design's type filter row: pill chips (All + every type held), single-select. */
+    private void refreshTypeChips() {
+        java.util.LinkedHashSet<String> types = new java.util.LinkedHashSet<>();
         for (InvestmentType type : InvestmentType.values()) {
             types.add(type.dbValue());
         }
         types.addAll(investmentDao.distinctTypes());
-        String previousSelection = typeFilter.getValue();
-        typeFilter.getItems().setAll(ALL_TYPES);
-        typeFilter.getItems().addAll(types);
-        typeFilter.setValue(typeFilter.getItems().contains(previousSelection) ? previousSelection : ALL_TYPES);
+        if (!ALL_TYPES.equals(selectedType) && !types.contains(selectedType)) {
+            selectedType = ALL_TYPES;
+        }
 
-        applyFilters();
+        javafx.scene.control.ToggleGroup group = new javafx.scene.control.ToggleGroup();
+        typeChips.getChildren().clear();
+        javafx.scene.control.ToggleButton allChip = new javafx.scene.control.ToggleButton("All");
+        allChip.getStyleClass().add("chip-toggle");
+        allChip.setToggleGroup(group);
+        allChip.setSelected(ALL_TYPES.equals(selectedType));
+        allChip.setOnAction(e -> { selectedType = ALL_TYPES; applyFilters(); });
+        typeChips.getChildren().add(allChip);
+        for (String type : types) {
+            javafx.scene.control.ToggleButton chip = new javafx.scene.control.ToggleButton(type);
+            chip.getStyleClass().add("chip-toggle");
+            chip.setToggleGroup(group);
+            chip.setSelected(type.equals(selectedType));
+            chip.setOnAction(e -> { selectedType = type; applyFilters(); });
+            typeChips.getChildren().add(chip);
+        }
     }
 
     /** The reference design's Investments KPI strip: Invested / Value today / Gain / Return. */
@@ -174,18 +191,16 @@ public class InvestmentsView extends BorderPane {
 
     /** Drill-down from the Dashboard's Investment Allocation chart. */
     public void filterByType(String type) {
-        if (typeFilter.getItems().contains(type)) {
-            typeFilter.setValue(type);
-        }
+        selectedType = type;
+        refreshTypeChips();
         applyFilters();
     }
 
     private void applyFilters() {
-        String type = typeFilter.getValue();
         String range = dateRangeFilter.getValue();
         String query = searchField.getText() == null ? "" : searchField.getText().trim().toLowerCase(Locale.ROOT);
         filteredData.setPredicate(investment ->
-                (ALL_TYPES.equals(type) || investment.getInvestmentType().equals(type))
+                (ALL_TYPES.equals(selectedType) || investment.getInvestmentType().equals(selectedType))
                         && matchesDateRange(investment.getPurchaseDate(), range)
                         && matchesSearch(investment, query));
     }

@@ -60,10 +60,11 @@ public class ExpensesView extends BorderPane {
     private final ObservableList<Expense> data = FXCollections.observableArrayList();
     private final FilteredList<Expense> filteredData = new FilteredList<>(data, e -> true);
     private final ComboBox<String> dateRangeFilter = new ComboBox<>();
-    private final ComboBox<String> categoryFilter = new ComboBox<>();
+    private final javafx.scene.layout.FlowPane categoryChips = new javafx.scene.layout.FlowPane(8, 8);
     private final TextField searchField = new TextField();
     private final com.spendlocker.dao.RecurringExpenseDao recurringExpenseDao = new com.spendlocker.dao.RecurringExpenseDao();
     private final VBox kpiStripBox = new VBox();
+    private String selectedCategory = ALL_CATEGORIES;
 
     public ExpensesView() {
         setPadding(new Insets(24));
@@ -111,23 +112,20 @@ public class ExpensesView extends BorderPane {
         dateRangeFilter.setValue(ALL_TIME);
         dateRangeFilter.setOnAction(e -> applyFilter());
 
-        categoryFilter.setValue(ALL_CATEGORIES);
-        categoryFilter.setOnAction(e -> applyFilter());
-
         searchField.setPromptText("Search merchant, category or notes");
         searchField.getStyleClass().add("search-field");
         searchField.setPrefWidth(260);
         searchField.textProperty().addListener((obs, old, val) -> applyFilter());
 
         HBox filterBar = new HBox(10, searchField,
-                new Label("Period:", new FontIcon(Feather.FILTER)), dateRangeFilter,
-                new Label("Category:"), categoryFilter);
+                new Label("Period:", new FontIcon(Feather.FILTER)), dateRangeFilter);
         filterBar.setAlignment(Pos.CENTER_LEFT);
-        filterBar.setPadding(new Insets(0, 0, 16, 0));
+        filterBar.setPadding(new Insets(0, 0, 12, 0));
 
+        categoryChips.setPadding(new Insets(0, 0, 16, 0));
         kpiStripBox.setPadding(new Insets(0, 0, 16, 0));
 
-        VBox header = new VBox(toolbar, kpiStripBox, filterBar);
+        VBox header = new VBox(toolbar, kpiStripBox, filterBar, categoryChips);
 
         buildColumns();
         table.setItems(filteredData);
@@ -155,11 +153,34 @@ public class ExpensesView extends BorderPane {
     public void refresh() {
         data.setAll(expenseDao.findAll());
         refreshKpiStrip();
-        String previousCategory = categoryFilter.getValue();
-        categoryFilter.getItems().setAll(ALL_CATEGORIES);
-        categoryFilter.getItems().addAll(expenseDao.distinctCategories());
-        categoryFilter.setValue(categoryFilter.getItems().contains(previousCategory) ? previousCategory : ALL_CATEGORIES);
+        refreshCategoryChips();
         applyFilter();
+    }
+
+    /** The reference design's category filter row: pill chips (All + every category in use),
+     *  single-select, rebuilt whenever the category list changes. */
+    private void refreshCategoryChips() {
+        List<String> categories = new java.util.ArrayList<>();
+        categories.add(ALL_CATEGORIES);
+        categories.addAll(expenseDao.distinctCategories());
+        if (!categories.contains(selectedCategory)) {
+            selectedCategory = ALL_CATEGORIES;
+        }
+
+        javafx.scene.control.ToggleGroup group = new javafx.scene.control.ToggleGroup();
+        categoryChips.getChildren().clear();
+        for (String category : categories) {
+            javafx.scene.control.ToggleButton chip = new javafx.scene.control.ToggleButton(
+                    ALL_CATEGORIES.equals(category) ? "All" : category);
+            chip.getStyleClass().add("chip-toggle");
+            chip.setToggleGroup(group);
+            chip.setSelected(category.equals(selectedCategory));
+            chip.setOnAction(e -> {
+                selectedCategory = category;
+                applyFilter();
+            });
+            categoryChips.getChildren().add(chip);
+        }
     }
 
     /** The reference design's Expenses KPI strip: Committed monthly / Same over a year, using
@@ -188,19 +209,17 @@ public class ExpensesView extends BorderPane {
 
     /** Drill-down from the Dashboard's Spending by Category chart — shows every matching expense. */
     public void filterByCategory(String category) {
-        if (categoryFilter.getItems().contains(category)) {
-            categoryFilter.setValue(category);
-        }
+        selectedCategory = category;
         dateRangeFilter.setValue(ALL_TIME);
+        refreshCategoryChips();
         applyFilter();
     }
 
     private void applyFilter() {
         String range = dateRangeFilter.getValue();
-        String category = categoryFilter.getValue();
         String query = searchField.getText() == null ? "" : searchField.getText().trim().toLowerCase(Locale.ROOT);
         filteredData.setPredicate(expense -> matchesDateRange(expense.getTransactionDate(), range)
-                && (ALL_CATEGORIES.equals(category) || category == null || category.equals(expense.getCategory()))
+                && (ALL_CATEGORIES.equals(selectedCategory) || selectedCategory.equals(expense.getCategory()))
                 && matchesSearch(expense, query));
     }
 
