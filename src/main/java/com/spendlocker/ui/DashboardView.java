@@ -1,6 +1,5 @@
 package com.spendlocker.ui;
 
-import com.spendlocker.config.AppConfig;
 import com.spendlocker.dao.BudgetDao;
 import com.spendlocker.dao.DocumentDao;
 import com.spendlocker.dao.ExpenseDao;
@@ -13,7 +12,6 @@ import javafx.geometry.Pos;
 import javafx.scene.chart.BarChart;
 import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.NumberAxis;
-import javafx.scene.chart.PieChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
@@ -23,10 +21,8 @@ import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
-import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Circle;
 import org.kordamp.ikonli.feather.Feather;
 import org.kordamp.ikonli.javafx.FontIcon;
 
@@ -75,8 +71,6 @@ public class DashboardView extends VBox {
 
     public void refresh() {
         getChildren().clear();
-        boolean dark = ThemeManager.loadSaved(new AppConfig()) == ThemeManager.DARK;
-        CategoricalPalette palette = new CategoricalPalette(dark);
 
         Label title = new Label("Dashboard", new FontIcon(Feather.HOME));
         title.getStyleClass().add("title-1");
@@ -98,7 +92,7 @@ public class DashboardView extends VBox {
                 new Label("View:", new FontIcon(Feather.CALENDAR)), fyFilter);
         titleRow.setAlignment(Pos.CENTER_LEFT);
 
-        FlowPane chartsRow = new FlowPane(16, 16, buildCategoryChart(palette), buildAllocationChart(palette));
+        FlowPane chartsRow = new FlowPane(16, 16, buildCategoryChart(), buildAllocationChart());
 
         // KPIs, then the runway trend, then what needs attention, then what's due next, then
         // breakdowns — the same hero -> runway -> next-out -> detail flow as the reference design.
@@ -243,118 +237,28 @@ public class DashboardView extends VBox {
         return chartCard("Monthly Spending Trend", chart);
     }
 
-    /** Part-to-whole across an open-ended set of categories -> donut, top N + "Other". */
-    private VBox buildCategoryChart(CategoricalPalette palette) {
+    /** Part-to-whole across an open-ended set of categories -> the reference's concentration bar,
+     *  top N + "Other" (single teal hue, ranked dark-to-light, no rainbow). */
+    private VBox buildCategoryChart() {
         LinkedHashMap<String, Double> categoryTotals = expenseDao.categoryTotalsForRange(
                 FinancialYear.startOf(selectedFinancialYear).format(DateTimeFormatter.ISO_LOCAL_DATE),
                 FinancialYear.endOf(selectedFinancialYear).format(DateTimeFormatter.ISO_LOCAL_DATE));
         LinkedHashMap<String, Double> chartData = topNWithOther(categoryTotals, MAX_CATEGORY_SLICES);
 
-        Map<String, String> colorByLabel = new LinkedHashMap<>();
-        int slot = 0;
-        for (String label : chartData.keySet()) {
-            colorByLabel.put(label, label.equals("Other") ? palette.otherColor() : palette.slot(slot++));
-        }
-
-        VBox chartArea = buildDonut(chartData, colorByLabel, "Total Spent", onCategoryDrilldown);
-        VBox card = chartCard("Spending by Category (" + selectedFinancialYear + ")", chartArea);
-        card.getStyleClass().add("donut-card");
-        return card;
+        ConcentrationBar bar = new ConcentrationBar();
+        bar.setData(chartData, "categories", onCategoryDrilldown);
+        return chartCard("Spending by Category (" + selectedFinancialYear + ")", bar);
     }
 
-    /**
-     * Fixed identity -> value, so each investment type keeps the same slot regardless of rank.
-     */
-    private VBox buildAllocationChart(CategoricalPalette palette) {
-        LinkedHashMap<String, Double> byType = investmentDao.currentValueByType();
+    /** Fixed identity -> value, ranked largest-first for the concentration bar's shading. */
+    private VBox buildAllocationChart() {
+        LinkedHashMap<String, Double> byType = investmentDao.currentValueByType().entrySet().stream()
+                .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
+                .collect(LinkedHashMap::new, (map, e) -> map.put(e.getKey(), e.getValue()), LinkedHashMap::putAll);
 
-        Map<String, String> colorByLabel = new LinkedHashMap<>();
-        int i = 0;
-        for (String label : byType.keySet()) {
-            colorByLabel.put(label, palette.slot(i++));
-        }
-
-        VBox chartArea = buildDonut(byType, colorByLabel, "Total Value", onInvestmentTypeDrilldown);
-        VBox card = chartCard("Investment Allocation", chartArea);
-        card.getStyleClass().add("donut-card");
-        return card;
-    }
-
-    /**
-     * A donut (part-to-whole, small fixed set of slices) with a center total, a manually-colored
-     * legend (so it matches whatever fixed/ranked colors the caller assigned), and per-slice
-     * hover tooltips showing value + percentage.
-     */
-    private VBox buildDonut(LinkedHashMap<String, Double> data, Map<String, String> colorByLabel,
-                             String centerCaption, Consumer<String> onSliceClick) {
-        double total = data.values().stream().mapToDouble(Double::doubleValue).sum();
-        boolean empty = data.isEmpty();
-
-        PieChart chart = new PieChart();
-        chart.setLegendVisible(false);
-        chart.setLabelsVisible(false);
-        chart.setAnimated(false);
-        chart.setPrefSize(220, 220);
-        chart.setStartAngle(90);
-
-        if (empty) {
-            chart.getData().add(new PieChart.Data("No data yet", 1));
-        } else {
-            data.forEach((label, value) -> chart.getData().add(new PieChart.Data(label, value)));
-        }
-
-        for (PieChart.Data slice : chart.getData()) {
-            String color = colorByLabel.get(slice.getName());
-            double pct = total > 0 ? (slice.getPieValue() / total) * 100 : 0;
-            // "Other" bundles several categories together, so clicking it can't map to one
-            // filter value — only individual slices drill down.
-            boolean clickable = !empty && onSliceClick != null && !"Other".equals(slice.getName());
-            slice.nodeProperty().addListener((obs, oldNode, newNode) -> {
-                if (newNode == null) return;
-                if (color != null) newNode.setStyle("-fx-pie-color: " + color + ";");
-                String tooltipText = String.format("%s: %s (%.1f%%)", slice.getName(), currency(slice.getPieValue()), pct)
-                        + (clickable ? "\nClick to view" : "");
-                Tooltip.install(newNode, new Tooltip(tooltipText));
-                if (clickable) {
-                    newNode.setCursor(javafx.scene.Cursor.HAND);
-                    newNode.setOnMouseClicked(evt -> onSliceClick.accept(slice.getName()));
-                }
-            });
-        }
-
-        Circle hole = new Circle(42);
-        hole.getStyleClass().add("donut-hole");
-        Label totalLabel = new Label(currency(total));
-        totalLabel.getStyleClass().add("title-3");
-        Label totalCaption = new Label(centerCaption);
-        totalCaption.getStyleClass().add("text-caption");
-        VBox centerText = new VBox(2, totalLabel, totalCaption);
-        centerText.setAlignment(Pos.CENTER);
-        StackPane donutStack = new StackPane(chart, hole, centerText);
-
-        FlowPane legend = new FlowPane(12, 6);
-        colorByLabel.forEach((label, color) -> {
-            boolean clickable = !empty && onSliceClick != null && !"Other".equals(label);
-            legend.getChildren().add(legendEntry(label, color, clickable ? onSliceClick : null));
-        });
-
-        return new VBox(12, donutStack, legend);
-    }
-
-    private HBox legendEntry(String label, String color, Consumer<String> onClick) {
-        Region swatch = new Region();
-        swatch.getStyleClass().add("legend-swatch");
-        swatch.setStyle("-fx-background-color: " + color + ";");
-        Label text = new Label(label);
-        text.getStyleClass().add("text-caption");
-        HBox entry = new HBox(6, swatch, text);
-        entry.setAlignment(Pos.CENTER_LEFT);
-        if (onClick != null) {
-            entry.setCursor(javafx.scene.Cursor.HAND);
-            entry.setOnMouseClicked(e -> onClick.accept(label));
-            Tooltip.install(entry, new Tooltip("Click to view"));
-        }
-        return entry;
+        ConcentrationBar bar = new ConcentrationBar();
+        bar.setData(byType, "types", onInvestmentTypeDrilldown);
+        return chartCard("Investment Allocation", bar);
     }
 
     private BarChart<Number, String> horizontalBarChart(LinkedHashMap<String, Double> data, Map<String, String> colorByLabel) {

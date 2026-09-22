@@ -267,10 +267,6 @@
     -fx-max-height: 10;
 }
 
-.donut-hole {
-    -fx-fill: -color-bg-subtle;
-}
-
 .info-icon {
     -fx-icon-color: -color-fg-muted;
     -fx-icon-size: 13;
@@ -325,8 +321,4 @@
 
 .trend-chart .chart-alternative-row-fill {
     -fx-fill: transparent;
-}
-
-.donut-card {
-    -fx-min-width: 260;
 }
