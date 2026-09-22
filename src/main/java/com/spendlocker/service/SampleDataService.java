@@ -66,6 +66,10 @@ public class SampleDataService {
             {"5-Year Fixed Deposit", "", "Fixed Deposit", 10, 10000.00, 11200.00, 1.0, "7% annual interest"},
             {"Sovereign Gold Bond", "SGB", "Gold", 24, 3000.00, 3450.00, 1.0, ""},
             {"Corporate Bond Fund", "", "Bonds", 12, 4000.00, 4180.00, 1.0, "AAA-rated"},
+            {"Microsoft Corp.", "MSFT", "Stocks", 5, 1800.00, 415.20, 4.3, ""},
+            {"Nifty 50 Index Fund", "", "Mutual Funds", 18, 3000.00, 182.50, 16.0, "SIP"},
+            {"Ethereum", "ETH", "Crypto", 9, 1200.00, 3400.00, 0.35, ""},
+            {"Recurring Deposit", "", "Fixed Deposit", 4, 2000.00, 2140.00, 1.0, "6.5% annual interest"},
         };
         int inserted = 0;
         for (Object[] row : rows) {
