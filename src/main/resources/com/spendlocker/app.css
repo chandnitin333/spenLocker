@@ -87,10 +87,51 @@
 
 .card {
     -fx-background-color: -color-bg-subtle;
-    -fx-background-radius: 14;
+    -fx-background-radius: 10;
     -fx-border-color: -color-border-default;
-    -fx-border-radius: 14;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.08), 12, 0, 0, 3);
+    -fx-border-radius: 10;
+}
+
+.card:hover {
+    -fx-border-color: -color-success-emphasis;
+}
+
+/* hstrip: the reference design's KPI-row pattern — a single hairline-bordered strip whose
+   cells are divided by 1px gaps in the border color (no per-cell card/shadow). */
+.hstrip {
+    -fx-background-color: -color-border-subtle;
+    -fx-background-radius: 10;
+    -fx-border-color: -color-border-default;
+    -fx-border-radius: 10;
+}
+
+.hcell {
+    -fx-background-color: -color-bg-default;
+}
+
+.hcell .hcell-label {
+    -fx-font-size: 11.5px;
+    -fx-text-fill: -color-fg-muted;
+    -fx-font-weight: normal;
+}
+
+.hcell .hcell-value {
+    -fx-font-size: 20px;
+    -fx-font-weight: 600;
+}
+
+.hcell.urgent .hcell-value {
+    -fx-text-fill: -color-danger-fg;
+}
+
+.next-up-row.divider {
+    -fx-border-color: transparent transparent -color-border-subtle transparent;
+    -fx-border-width: 0 0 1 0;
+}
+
+.next-up-row:hover {
+    -fx-background-color: -color-bg-inset;
+    -fx-background-radius: 7;
 }
 
 .table-view {

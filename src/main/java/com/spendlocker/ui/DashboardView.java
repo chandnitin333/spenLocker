@@ -5,6 +5,8 @@ import com.spendlocker.dao.BudgetDao;
 import com.spendlocker.dao.DocumentDao;
 import com.spendlocker.dao.ExpenseDao;
 import com.spendlocker.dao.InvestmentDao;
+import com.spendlocker.dao.RecurringExpenseDao;
+import com.spendlocker.model.RecurringExpense;
 import com.spendlocker.util.FinancialYear;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -15,6 +17,7 @@ import javafx.scene.chart.PieChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.Separator;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
@@ -22,8 +25,8 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
-import org.kordamp.ikonli.Ikon;
 import org.kordamp.ikonli.feather.Feather;
 import org.kordamp.ikonli.javafx.FontIcon;
 
@@ -32,7 +35,9 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
+import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -47,6 +52,7 @@ public class DashboardView extends VBox {
     private final InvestmentDao investmentDao = new InvestmentDao();
     private final DocumentDao documentDao = new DocumentDao();
     private final BudgetDao budgetDao = new BudgetDao();
+    private final RecurringExpenseDao recurringExpenseDao = new RecurringExpenseDao();
     private final Consumer<String> onCategoryDrilldown;
     private final Consumer<String> onInvestmentTypeDrilldown;
 
@@ -94,14 +100,19 @@ public class DashboardView extends VBox {
 
         FlowPane chartsRow = new FlowPane(16, 16, buildCategoryChart(palette), buildAllocationChart(palette));
 
-        // KPIs first (what happened), then alerts (what needs attention), then trend and
-        // breakdowns (why) — the order a reader actually wants, not construction order.
+        // KPIs, then the runway trend, then what needs attention, then what's due next, then
+        // breakdowns — the same hero -> runway -> next-out -> detail flow as the reference design.
         getChildren().addAll(titleRow, buildStatCards(investmentDao.overallRoiPercent()));
         VBox budgetAlerts = buildBudgetAlerts();
         if (budgetAlerts != null) {
             getChildren().add(budgetAlerts);
         }
-        getChildren().addAll(buildTrendChart(), chartsRow);
+        getChildren().add(buildTrendChart());
+        VBox nextUp = buildNextUp();
+        if (nextUp != null) {
+            getChildren().add(nextUp);
+        }
+        getChildren().add(chartsRow);
     }
 
     /** Flags any budgeted category at >=90% of its monthly limit. Returns null when nothing to flag. */
@@ -131,6 +142,75 @@ public class DashboardView extends VBox {
         Label heading = new Label("Budget Alerts", new FontIcon(Feather.BELL));
         heading.getStyleClass().add("title-3");
         VBox card = new VBox(10, heading, rows);
+        card.getStyleClass().add("card");
+        card.setPadding(new Insets(16));
+        return card;
+    }
+
+    /**
+     * Upcoming recurring expenses with countdown rings — SpendLocker's equivalent of the
+     * reference design's maturity reminders, using next-due-date in place of maturity date.
+     * Ring color and the "due soon" cutoffs (30 / 90 days) match the reference exactly.
+     */
+    private VBox buildNextUp() {
+        List<RecurringExpense> upcoming = recurringExpenseDao.findAll().stream()
+                .filter(RecurringExpense::isActive)
+                .limit(6)
+                .toList();
+        if (upcoming.isEmpty()) return null;
+
+        LocalDate today = LocalDate.now();
+        double dueSoonTotal = 0;
+        int dueSoonCount = 0;
+
+        VBox rows = new VBox();
+        for (int i = 0; i < upcoming.size(); i++) {
+            RecurringExpense r = upcoming.get(i);
+            LocalDate due = LocalDate.parse(r.getNextDueDate());
+            long daysLeft = ChronoUnit.DAYS.between(today, due);
+            if (daysLeft <= 90) {
+                dueSoonTotal += r.getAmount();
+                dueSoonCount++;
+            }
+            Color color = daysLeft <= 30 ? Color.web("#A32D2D")
+                    : daysLeft <= 90 ? Color.web("#9A6A12")
+                    : Color.web("#2C7A6E");
+            CountdownRing ring = new CountdownRing((int) daysLeft, color);
+
+            String primaryName = r.getMerchantOrVendor() != null && !r.getMerchantOrVendor().isBlank()
+                    ? r.getMerchantOrVendor() : r.getCategory();
+            Label who = new Label(primaryName);
+            who.setStyle("-fx-font-weight: 600;");
+            Label category = new Label(r.getCategory());
+            category.getStyleClass().add("text-caption");
+            HBox whoBox = new HBox(6, who, category);
+            whoBox.setAlignment(Pos.CENTER_LEFT);
+
+            Region spacer = new Region();
+            HBox.setHgrow(spacer, Priority.ALWAYS);
+
+            Label dateLabel = new Label(due.format(DateTimeFormatter.ofPattern("d MMM")));
+            dateLabel.getStyleClass().add("text-caption");
+            Label amountLabel = new Label(currency(r.getAmount()));
+
+            HBox row = new HBox(12, ring, whoBox, spacer, dateLabel, amountLabel);
+            row.setAlignment(Pos.CENTER_LEFT);
+            row.setPadding(new Insets(7, 4, 7, 4));
+            row.getStyleClass().add("next-up-row");
+            if (i < upcoming.size() - 1) {
+                row.getStyleClass().add("divider");
+            }
+            rows.getChildren().add(row);
+        }
+
+        Label summary = new Label(dueSoonCount > 0
+                ? String.format("%s across %d due in the next 90 days", currency(dueSoonTotal), dueSoonCount)
+                : "Nothing due in the next 90 days");
+        summary.getStyleClass().add("text-caption");
+
+        Label heading = new Label("Next Up", new FontIcon(Feather.CLOCK));
+        heading.getStyleClass().add("title-3");
+        VBox card = new VBox(6, heading, summary, new Separator(), rows);
         card.getStyleClass().add("card");
         card.setPadding(new Insets(16));
         return card;
@@ -331,49 +411,40 @@ public class DashboardView extends VBox {
         return ym.getMonth().getDisplayName(TextStyle.SHORT, Locale.getDefault()) + " '" + (ym.getYear() % 100);
     }
 
+    /** The reference design's "hstrip" KPI row: one hairline-bordered strip, hcells divided by
+     *  1px gaps rather than separate shadowed cards. */
     private HBox buildStatCards(double roi) {
         double fySpend = expenseDao.sumForRange(
                 FinancialYear.startOf(selectedFinancialYear).format(DateTimeFormatter.ISO_LOCAL_DATE),
                 FinancialYear.endOf(selectedFinancialYear).format(DateTimeFormatter.ISO_LOCAL_DATE));
-        HBox cards = new HBox(16,
-                statCard(Feather.CREDIT_CARD, "This Month's Spending", currency(expenseDao.sumForCurrentMonth()), null),
-                statCard(Feather.CALENDAR, selectedFinancialYear + " Spending", currency(fySpend), null),
-                statCard(Feather.TRENDING_UP, "Portfolio Value", currency(investmentDao.sumCurrentValue()),
-                        String.format("%s%.2f%% ROI", roi >= 0 ? "+" : "", roi)),
-                statCard(Feather.FOLDER, "Documents in Vault", String.valueOf(documentDao.count()), null));
-        cards.setFillHeight(true);
-        return cards;
+        String roiBadge = String.format("%s%.2f%% ROI", roi >= 0 ? "+" : "", roi);
+        HBox strip = new HBox(1,
+                hcell("This Month's Spending", currency(expenseDao.sumForCurrentMonth()), null),
+                hcell(selectedFinancialYear + " Spending", currency(fySpend), null),
+                hcell("Portfolio Value", currency(investmentDao.sumCurrentValue()), roiBadge),
+                hcell("Documents in Vault", String.valueOf(documentDao.count()), null));
+        strip.getStyleClass().add("hstrip");
+        strip.setFillHeight(true);
+        return strip;
     }
 
-    private VBox statCard(Ikon icon, String label, String value, String badge) {
-        FontIcon fontIcon = new FontIcon(icon);
-        fontIcon.getStyleClass().add("stat-icon");
-        HBox iconCircle = new HBox(fontIcon);
-        iconCircle.setAlignment(Pos.CENTER);
-        iconCircle.getStyleClass().add("stat-icon-circle");
+    private VBox hcell(String label, String value, String note) {
+        Label labelText = new Label(label.toUpperCase(Locale.ROOT));
+        labelText.getStyleClass().add("hcell-label");
+        Label valueText = new Label(value);
+        valueText.getStyleClass().add("hcell-value");
 
-        Label valueLabel = new Label(value);
-        valueLabel.getStyleClass().add("title-2");
-        Label captionLabel = new Label(label);
-        captionLabel.getStyleClass().add("text-caption");
-
-        VBox textBox = new VBox(4, valueLabel, captionLabel);
-
-        if (badge != null) {
-            Label badgeLabel = new Label(badge);
-            badgeLabel.getStyleClass().add(badge.startsWith("-") ? "badge-negative" : "badge-positive");
-            textBox.getChildren().add(badgeLabel);
+        VBox cell = new VBox(4, labelText, valueText);
+        if (note != null) {
+            Label noteLabel = new Label(note);
+            noteLabel.getStyleClass().add(note.startsWith("-") ? "badge-negative" : "badge-positive");
+            cell.getChildren().add(noteLabel);
         }
-
-        HBox content = new HBox(14, iconCircle, textBox);
-        content.setAlignment(Pos.CENTER_LEFT);
-
-        VBox card = new VBox(content);
-        card.setPadding(new Insets(18));
-        card.setAlignment(Pos.CENTER_LEFT);
-        card.getStyleClass().add("card");
-        HBox.setHgrow(card, Priority.ALWAYS);
-        return card;
+        cell.getStyleClass().add("hcell");
+        cell.setPadding(new Insets(14, 16, 14, 16));
+        cell.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(cell, Priority.ALWAYS);
+        return cell;
     }
 
     private String currency(double amount) {
