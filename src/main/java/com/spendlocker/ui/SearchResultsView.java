@@ -29,7 +29,10 @@ public class SearchResultsView extends VBox {
 
         Label title = new Label("Search results for \"" + query + "\"", new FontIcon(Feather.SEARCH));
         title.getStyleClass().add("title-1");
-        getChildren().add(title);
+        HBox header = new HBox(title);
+        header.getStyleClass().add("page-header");
+        header.setPadding(new Insets(0, 0, 12, 0));
+        getChildren().add(header);
 
         SearchResults results = searchService.search(query);
         if (results.isEmpty()) {

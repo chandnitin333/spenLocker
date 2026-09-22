@@ -93,6 +93,7 @@ public class DocumentsView extends BorderPane {
         HBox toolbar = new HBox(10, title, spacer, browseDriveButton, uploadToDriveButton,
                 openButton, importButton, importExcelButton, deleteButton);
         toolbar.setAlignment(Pos.CENTER_LEFT);
+        toolbar.getStyleClass().add("page-header");
         toolbar.setPadding(new Insets(0, 0, 16, 0));
 
         buildColumns();

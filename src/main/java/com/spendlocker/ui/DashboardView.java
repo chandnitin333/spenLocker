@@ -15,7 +15,6 @@ import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.Separator;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
@@ -91,6 +90,8 @@ public class DashboardView extends VBox {
         HBox titleRow = new HBox(10, title, titleSpacer, currentFyLabel,
                 new Label("View:", new FontIcon(Feather.CALENDAR)), fyFilter);
         titleRow.setAlignment(Pos.CENTER_LEFT);
+        titleRow.getStyleClass().add("page-header");
+        titleRow.setPadding(new Insets(0, 0, 12, 0));
 
         FlowPane chartsRow = new FlowPane(16, 16, buildCategoryChart(), buildAllocationChart());
 
@@ -133,10 +134,9 @@ public class DashboardView extends VBox {
 
         Label heading = new Label("Budget Alerts", new FontIcon(Feather.BELL));
         heading.getStyleClass().add("title-3");
-        VBox card = new VBox(10, heading, rows);
-        card.getStyleClass().add("card");
-        card.setPadding(new Insets(16));
-        return card;
+        VBox section = new VBox(10, heading, rows);
+        section.getStyleClass().add("dash-section");
+        return section;
     }
 
     /**
@@ -202,21 +202,22 @@ public class DashboardView extends VBox {
 
         Label heading = new Label("Next Up", new FontIcon(Feather.CLOCK));
         heading.getStyleClass().add("title-3");
-        VBox card = new VBox(6, heading, summary, new Separator(), rows);
-        card.getStyleClass().add("card");
-        card.setPadding(new Insets(16));
-        return card;
+        VBox section = new VBox(6, heading, summary, rows);
+        // The reference's own "Next out" is the one hero block with an explicit divider
+        // (border-top) rather than a boxed card — match that instead of boxing it.
+        section.getStyleClass().add("dash-section");
+        return section;
     }
 
+    /** A plain, boxless section — heading plus content, no card border/background — matching
+     *  the reference design's flat hero area (sections are separated by whitespace, not boxes). */
     private VBox chartCard(String heading, javafx.scene.Node chart) {
         Label headingLabel = new Label(heading);
         headingLabel.getStyleClass().add("title-3");
-        VBox card = new VBox(10, headingLabel, chart);
-        card.getStyleClass().add("card");
-        card.setPadding(new Insets(16));
+        VBox section = new VBox(10, headingLabel, chart);
         VBox.setVgrow(chart, Priority.ALWAYS);
-        HBox.setHgrow(card, Priority.ALWAYS);
-        return card;
+        HBox.setHgrow(section, Priority.ALWAYS);
+        return section;
     }
 
     /** Trend over time -> area chart (gradient fill under the line), single series in the accent hue. */

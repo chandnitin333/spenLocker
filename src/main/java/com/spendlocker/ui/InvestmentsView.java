@@ -84,6 +84,7 @@ public class InvestmentsView extends BorderPane {
         HBox.setHgrow(spacer, Priority.ALWAYS);
         HBox toolbar = new HBox(10, title, spacer, syncButton, importButton, addButton, editButton, deleteButton);
         toolbar.setAlignment(Pos.CENTER_LEFT);
+        toolbar.getStyleClass().add("page-header");
         toolbar.setPadding(new Insets(0, 0, 12, 0));
 
         typeFilter.setValue(ALL_TYPES);

@@ -60,8 +60,11 @@ public class SettingsView extends VBox {
 
         Label title = new Label("Settings");
         title.getStyleClass().add("title-1");
+        HBox header = new HBox(title);
+        header.getStyleClass().add("page-header");
+        header.setPadding(new Insets(0, 0, 12, 0));
 
-        getChildren().addAll(title, buildAppearanceSection(), buildSecuritySection(), buildBudgetsSection(),
+        getChildren().addAll(header, buildAppearanceSection(), buildSecuritySection(), buildBudgetsSection(),
                 buildRecurringSection(), buildBackupSection(), buildSampleDataSection(),
                 buildGoogleDriveSection(), buildEmailSyncSection());
         refreshGoogleStatus();

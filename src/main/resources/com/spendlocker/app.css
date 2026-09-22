@@ -107,6 +107,22 @@
     -fx-border-radius: 10;
 }
 
+/* The reference's own header is "18px 0 12px" padding with a 1.5px ink rule underneath —
+   applied to every screen's title row for the same page-top weight throughout the app. */
+.page-header {
+    -fx-border-color: transparent transparent -color-fg-default transparent;
+    -fx-border-width: 0 0 1.5 0;
+}
+
+/* The reference's Dashboard hero (KPIs, concentration bar, runway, next-out) is boxless —
+   sections are separated by a hairline top rule and whitespace, never a bordered card. Used
+   for the "Next Up" and "Budget Alerts" sections below the charts. */
+.dash-section {
+    -fx-border-color: -color-border-default transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+    -fx-padding: 20 0 0 0;
+}
+
 .card:hover {
     -fx-border-color: -color-success-emphasis;
 }

@@ -40,10 +40,13 @@ public class TrashView extends VBox {
 
         Label title = new Label("Trash", new FontIcon(Feather.TRASH_2));
         title.getStyleClass().add("title-1");
+        HBox header = new HBox(title);
+        header.getStyleClass().add("page-header");
+        header.setPadding(new Insets(0, 0, 12, 0));
         Label description = new Label("Deleted items stay here until you restore them or remove them permanently.");
         description.getStyleClass().add("text-caption");
 
-        getChildren().addAll(title, description,
+        getChildren().addAll(header, description,
                 section("Expenses", Feather.CREDIT_CARD, expenseList),
                 section("Investments", Feather.TRENDING_UP, investmentList),
                 section("Documents", Feather.FOLDER, documentList));

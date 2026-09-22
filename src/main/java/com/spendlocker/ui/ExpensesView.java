@@ -101,6 +101,7 @@ public class ExpensesView extends BorderPane {
         HBox.setHgrow(spacer, Priority.ALWAYS);
         HBox toolbar = new HBox(10, title, spacer, syncButton, importMenu, exportMenu, addButton, duplicateButton, editButton, deleteButton);
         toolbar.setAlignment(Pos.CENTER_LEFT);
+        toolbar.getStyleClass().add("page-header");
         toolbar.setPadding(new Insets(0, 0, 12, 0));
 
         dateRangeFilter.getItems().addAll(ALL_TIME, THIS_WEEK, THIS_MONTH, THIS_YEAR);
