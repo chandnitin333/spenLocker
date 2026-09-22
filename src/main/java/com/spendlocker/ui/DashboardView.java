@@ -10,7 +10,6 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.chart.BarChart;
 import javafx.scene.chart.CategoryAxis;
-import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.PieChart;
 import javafx.scene.chart.XYChart;
@@ -93,15 +92,16 @@ public class DashboardView extends VBox {
                 new Label("View:", new FontIcon(Feather.CALENDAR)), fyFilter);
         titleRow.setAlignment(Pos.CENTER_LEFT);
 
-        HBox chartsRow = new HBox(16, buildCategoryChart(palette), buildAllocationChart(palette));
-        chartsRow.setFillHeight(true);
+        FlowPane chartsRow = new FlowPane(16, 16, buildCategoryChart(palette), buildAllocationChart(palette));
 
-        getChildren().addAll(titleRow, buildTrendChart(), chartsRow,
-                buildStatCards(investmentDao.overallRoiPercent()));
+        // KPIs first (what happened), then alerts (what needs attention), then trend and
+        // breakdowns (why) — the order a reader actually wants, not construction order.
+        getChildren().addAll(titleRow, buildStatCards(investmentDao.overallRoiPercent()));
         VBox budgetAlerts = buildBudgetAlerts();
         if (budgetAlerts != null) {
             getChildren().add(budgetAlerts);
         }
+        getChildren().addAll(buildTrendChart(), chartsRow);
     }
 
     /** Flags any budgeted category at >=90% of its monthly limit. Returns null when nothing to flag. */
@@ -147,18 +147,18 @@ public class DashboardView extends VBox {
         return card;
     }
 
-    /** Trend over time -> line chart, single series in the sequential (blue) hue. */
+    /** Trend over time -> area chart (gradient fill under the line), single series in the accent hue. */
     private VBox buildTrendChart() {
         LinkedHashMap<String, Double> monthly = expenseDao.monthlyTotals(TREND_MONTHS);
 
         CategoryAxis xAxis = new CategoryAxis();
         NumberAxis yAxis = new NumberAxis();
         yAxis.setForceZeroInRange(true);
-        LineChart<String, Number> chart = new LineChart<>(xAxis, yAxis);
+        javafx.scene.chart.AreaChart<String, Number> chart = new javafx.scene.chart.AreaChart<>(xAxis, yAxis);
         chart.setLegendVisible(false);
         chart.setCreateSymbols(true);
         chart.setAnimated(false);
-        chart.setPrefHeight(220);
+        chart.setPrefHeight(240);
         chart.getStyleClass().add("trend-chart");
 
         XYChart.Series<String, Number> series = new XYChart.Series<>();
@@ -193,7 +193,9 @@ public class DashboardView extends VBox {
         }
 
         VBox chartArea = buildDonut(chartData, colorByLabel, "Total Spent", onCategoryDrilldown);
-        return chartCard("Spending by Category (" + selectedFinancialYear + ")", chartArea);
+        VBox card = chartCard("Spending by Category (" + selectedFinancialYear + ")", chartArea);
+        card.getStyleClass().add("donut-card");
+        return card;
     }
 
     /**
@@ -209,7 +211,9 @@ public class DashboardView extends VBox {
         }
 
         VBox chartArea = buildDonut(byType, colorByLabel, "Total Value", onInvestmentTypeDrilldown);
-        return chartCard("Investment Allocation", chartArea);
+        VBox card = chartCard("Investment Allocation", chartArea);
+        card.getStyleClass().add("donut-card");
+        return card;
     }
 
     /**

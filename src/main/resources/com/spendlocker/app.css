@@ -202,3 +202,44 @@
     -fx-background-radius: 8;
     -fx-prompt-text-fill: -color-fg-muted;
 }
+
+/* Monthly spending trend: a soft gradient fill under the line, recessive axes/grid so the
+   data reads first. */
+.trend-chart {
+    -fx-padding: 4 8 0 0;
+}
+
+.trend-chart .chart-series-area-fill {
+    -fx-fill: linear-gradient(to bottom, -color-accent-emphasis 0%, transparent 90%);
+    -fx-opacity: 0.28;
+}
+
+.trend-chart .chart-series-area-line {
+    -fx-stroke: -color-accent-emphasis;
+    -fx-stroke-width: 2.5px;
+}
+
+.trend-chart .chart-line-symbol {
+    -fx-background-color: -color-accent-emphasis, white;
+    -fx-background-insets: 0, 2;
+    -fx-background-radius: 999;
+    -fx-padding: 5px;
+}
+
+.trend-chart .axis {
+    -fx-tick-label-fill: -color-fg-muted;
+}
+
+.trend-chart .chart-vertical-grid-lines,
+.trend-chart .chart-horizontal-grid-lines {
+    -fx-stroke: -color-border-default;
+    -fx-opacity: 0.5;
+}
+
+.trend-chart .chart-alternative-row-fill {
+    -fx-fill: transparent;
+}
+
+.donut-card {
+    -fx-min-width: 260;
+}
