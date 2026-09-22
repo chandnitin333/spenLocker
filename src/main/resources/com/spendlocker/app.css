@@ -67,6 +67,18 @@
     -fx-letter-spacing: -0.01em;
 }
 
+/* AtlantaFX's default button is 4px radius / 8x12 padding; the reference's .primary button is
+   6px radius, 8x15 padding, weight 600 — match it so every button (not just the accent ones)
+   reads the same as the reference's flatter, slightly more spacious pill shape. */
+.button {
+    -fx-background-radius: 6px, 5px;
+    -fx-padding: 8px 15px 8px 15px;
+}
+
+.button.accent {
+    -fx-font-family: "Archivo SemiBold";
+}
+
 .nav-button {
     -fx-alignment: CENTER_LEFT;
     -fx-background-radius: 8;
