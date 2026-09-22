@@ -93,7 +93,9 @@ public class InvestmentsView extends BorderPane {
 
         buildColumns();
         table.setItems(filteredData);
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        // Unconstrained (not flex-last-column): fixed per-column widths so a wide asset name
+        // can't squeeze the Actions column down to nothing — a horizontal scrollbar appears instead.
+        table.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
         table.setPlaceholder(emptyState());
 
         setTop(header);
@@ -195,30 +197,39 @@ public class InvestmentsView extends BorderPane {
 
     private void buildColumns() {
         TableColumn<Investment, String> nameCol = new TableColumn<>("Asset");
+        nameCol.setPrefWidth(180);
         nameCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getAssetName()));
 
         TableColumn<Investment, String> tickerCol = new TableColumn<>("Ticker");
+        tickerCol.setPrefWidth(80);
         tickerCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getAssetTicker()));
 
         TableColumn<Investment, String> typeCol = new TableColumn<>("Type");
+        typeCol.setPrefWidth(120);
         typeCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getInvestmentType()));
 
         TableColumn<Investment, String> purchaseDateCol = new TableColumn<>("Purchase Date");
+        purchaseDateCol.setPrefWidth(110);
         purchaseDateCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getPurchaseDate()));
 
         TableColumn<Investment, Number> principalCol = new TableColumn<>("Principal");
+        principalCol.setPrefWidth(100);
         principalCol.setCellValueFactory(c -> new SimpleObjectProperty<>(c.getValue().getPrincipalAmount()));
 
         TableColumn<Investment, Number> unitsCol = new TableColumn<>("Units");
+        unitsCol.setPrefWidth(90);
         unitsCol.setCellValueFactory(c -> new SimpleObjectProperty<>(c.getValue().getTotalUnits()));
 
         TableColumn<Investment, Number> unitPriceCol = new TableColumn<>("Unit Price");
+        unitPriceCol.setPrefWidth(100);
         unitPriceCol.setCellValueFactory(c -> new SimpleObjectProperty<>(c.getValue().getCurrentUnitPrice()));
 
         TableColumn<Investment, Number> currentValueCol = new TableColumn<>("Current Value");
+        currentValueCol.setPrefWidth(110);
         currentValueCol.setCellValueFactory(c -> new SimpleObjectProperty<>(c.getValue().getCurrentTotalValue()));
 
         TableColumn<Investment, Number> roiCol = new TableColumn<>("ROI %");
+        roiCol.setPrefWidth(90);
         roiCol.setCellValueFactory(c -> new SimpleObjectProperty<>(c.getValue().getRoiPercent()));
         roiCol.setCellFactory(col -> new TableCell<>() {
             @Override
@@ -237,6 +248,10 @@ public class InvestmentsView extends BorderPane {
 
         TableColumn<Investment, Void> actionsCol = new TableColumn<>("Actions");
         actionsCol.setSortable(false);
+        actionsCol.setResizable(false);
+        actionsCol.setPrefWidth(90);
+        actionsCol.setMinWidth(90);
+        actionsCol.setMaxWidth(90);
         actionsCol.setCellFactory(col -> new TableCell<>() {
             private final Button editBtn = new Button(null, new FontIcon(Feather.EDIT_2));
             private final Button deleteBtn = new Button(null, new FontIcon(Feather.TRASH_2));

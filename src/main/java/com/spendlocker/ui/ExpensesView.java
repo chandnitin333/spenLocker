@@ -103,7 +103,9 @@ public class ExpensesView extends BorderPane {
 
         buildColumns();
         table.setItems(filteredData);
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        // Unconstrained (not flex-last-column): fixed per-column widths so Notes/Merchant can't
+        // squeeze the Actions column down to nothing — a horizontal scrollbar appears instead.
+        table.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
         table.setPlaceholder(emptyState());
 
         setTop(header);
@@ -163,26 +165,36 @@ public class ExpensesView extends BorderPane {
 
     private void buildColumns() {
         TableColumn<Expense, String> dateCol = new TableColumn<>("Date");
+        dateCol.setPrefWidth(100);
         dateCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getTransactionDate()));
 
         TableColumn<Expense, Number> amountCol = new TableColumn<>("Amount");
+        amountCol.setPrefWidth(100);
         amountCol.setCellValueFactory(c -> new SimpleObjectProperty<>(c.getValue().getAmount()));
 
         TableColumn<Expense, String> categoryCol = new TableColumn<>("Category");
+        categoryCol.setPrefWidth(140);
         categoryCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getCategory()));
 
         TableColumn<Expense, String> merchantCol = new TableColumn<>("Merchant/Vendor");
+        merchantCol.setPrefWidth(180);
         merchantCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getMerchantOrVendor()));
 
         TableColumn<Expense, String> paymentCol = new TableColumn<>("Payment Method");
+        paymentCol.setPrefWidth(140);
         paymentCol.setCellValueFactory(c -> new SimpleStringProperty(
                 c.getValue().getPaymentMethod() != null ? c.getValue().getPaymentMethod().toString() : ""));
 
         TableColumn<Expense, String> notesCol = new TableColumn<>("Notes");
+        notesCol.setPrefWidth(220);
         notesCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getNotes()));
 
         TableColumn<Expense, Void> actionsCol = new TableColumn<>("Actions");
         actionsCol.setSortable(false);
+        actionsCol.setResizable(false);
+        actionsCol.setPrefWidth(90);
+        actionsCol.setMinWidth(90);
+        actionsCol.setMaxWidth(90);
         actionsCol.setCellFactory(col -> new TableCell<>() {
             private final Button editBtn = new Button(null, new FontIcon(Feather.EDIT_2));
             private final Button deleteBtn = new Button(null, new FontIcon(Feather.TRASH_2));
