@@ -376,7 +376,7 @@ public class SettingsView extends VBox {
     }
 
     private String currency(double amount) {
-        return NumberFormat.getCurrencyInstance(Locale.getDefault()).format(amount);
+        return com.spendlocker.util.MoneyFormat.currency(amount);
     }
 
     private VBox buildAppearanceSection() {

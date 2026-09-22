@@ -233,6 +233,17 @@ public class InvestmentsView extends BorderPane {
         }
     }
 
+    private TableCell<Investment, Number> currencyCell() {
+        return new TableCell<>() {
+            @Override
+            protected void updateItem(Number value, boolean empty) {
+                super.updateItem(value, empty);
+                setText(empty || value == null ? null : com.spendlocker.util.MoneyFormat.currency(value.doubleValue()));
+                setStyle("-fx-alignment: CENTER-RIGHT;");
+            }
+        };
+    }
+
     private void buildColumns() {
         TableColumn<Investment, String> nameCol = new TableColumn<>("Asset");
         TableColumnUtil.fitHeader(nameCol, 180);
@@ -253,6 +264,7 @@ public class InvestmentsView extends BorderPane {
         TableColumn<Investment, Number> principalCol = new TableColumn<>("Principal");
         TableColumnUtil.fitHeader(principalCol, 100);
         principalCol.setCellValueFactory(c -> new SimpleObjectProperty<>(c.getValue().getPrincipalAmount()));
+        principalCol.setCellFactory(col -> currencyCell());
 
         TableColumn<Investment, Number> unitsCol = new TableColumn<>("Units");
         TableColumnUtil.fitHeader(unitsCol, 90);
@@ -261,10 +273,12 @@ public class InvestmentsView extends BorderPane {
         TableColumn<Investment, Number> unitPriceCol = new TableColumn<>("Unit Price");
         TableColumnUtil.fitHeader(unitPriceCol, 100);
         unitPriceCol.setCellValueFactory(c -> new SimpleObjectProperty<>(c.getValue().getCurrentUnitPrice()));
+        unitPriceCol.setCellFactory(col -> currencyCell());
 
         TableColumn<Investment, Number> currentValueCol = new TableColumn<>("Current Value");
         TableColumnUtil.fitHeader(currentValueCol, 110);
         currentValueCol.setCellValueFactory(c -> new SimpleObjectProperty<>(c.getValue().getCurrentTotalValue()));
+        currentValueCol.setCellFactory(col -> currencyCell());
 
         TableColumn<Investment, Number> roiCol = new TableColumn<>("ROI %");
         TableColumnUtil.fitHeader(roiCol, 90);

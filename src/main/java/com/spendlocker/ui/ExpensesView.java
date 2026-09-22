@@ -223,6 +223,14 @@ public class ExpensesView extends BorderPane {
         TableColumn<Expense, Number> amountCol = new TableColumn<>("Amount");
         TableColumnUtil.fitHeader(amountCol, 100);
         amountCol.setCellValueFactory(c -> new SimpleObjectProperty<>(c.getValue().getAmount()));
+        amountCol.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(Number value, boolean empty) {
+                super.updateItem(value, empty);
+                setText(empty || value == null ? null : com.spendlocker.util.MoneyFormat.currency(value.doubleValue()));
+                setStyle("-fx-alignment: CENTER-RIGHT;");
+            }
+        });
 
         TableColumn<Expense, String> categoryCol = new TableColumn<>("Category");
         TableColumnUtil.fitHeader(categoryCol, 140);

@@ -10,9 +10,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 
-import java.text.NumberFormat;
 import java.util.LinkedHashMap;
-import java.util.Locale;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -135,6 +133,6 @@ public class ConcentrationBar extends VBox {
     }
 
     private String money(double value) {
-        return NumberFormat.getCurrencyInstance(Locale.getDefault()).format(value);
+        return com.spendlocker.util.MoneyFormat.currency(value);
     }
 }

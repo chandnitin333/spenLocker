@@ -18,9 +18,7 @@ import javafx.scene.layout.VBox;
 import org.kordamp.ikonli.feather.Feather;
 import org.kordamp.ikonli.javafx.FontIcon;
 
-import java.text.NumberFormat;
 import java.util.List;
-import java.util.Locale;
 
 /** Everything soft-deleted from Expenses, Investments, and Documents — restore, or delete forever. */
 public class TrashView extends VBox {
@@ -162,6 +160,6 @@ public class TrashView extends VBox {
     }
 
     private String currency(double amount) {
-        return NumberFormat.getCurrencyInstance(Locale.getDefault()).format(amount);
+        return com.spendlocker.util.MoneyFormat.currency(amount);
     }
 }

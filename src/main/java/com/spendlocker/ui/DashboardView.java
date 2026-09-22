@@ -228,7 +228,7 @@ public class DashboardView extends VBox {
         RunwayChart chart = new RunwayChart();
         chart.setPrefHeight(200);
         chart.setMinHeight(200);
-        String symbol = NumberFormat.getCurrencyInstance(Locale.getDefault()).getCurrency().getSymbol();
+        String symbol = NumberFormat.getCurrencyInstance(new Locale("en", "IN")).getCurrency().getSymbol();
         chart.setData(
                 monthly.keySet().stream().map(this::formatMonth).toList(),
                 new java.util.ArrayList<>(monthly.values()),
@@ -367,6 +367,6 @@ public class DashboardView extends VBox {
     }
 
     private String currency(double amount) {
-        return NumberFormat.getCurrencyInstance(Locale.getDefault()).format(amount);
+        return com.spendlocker.util.MoneyFormat.currency(amount);
     }
 }

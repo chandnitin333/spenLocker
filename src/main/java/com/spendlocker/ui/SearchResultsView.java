@@ -16,9 +16,6 @@ import javafx.scene.layout.VBox;
 import org.kordamp.ikonli.feather.Feather;
 import org.kordamp.ikonli.javafx.FontIcon;
 
-import java.text.NumberFormat;
-import java.util.Locale;
-
 public class SearchResultsView extends VBox {
 
     private final SearchService searchService = new SearchService();
@@ -101,6 +98,6 @@ public class SearchResultsView extends VBox {
     }
 
     private String currency(double amount) {
-        return NumberFormat.getCurrencyInstance(Locale.getDefault()).format(amount);
+        return com.spendlocker.util.MoneyFormat.currency(amount);
     }
 }
