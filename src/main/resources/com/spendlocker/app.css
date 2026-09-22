@@ -67,16 +67,65 @@
     -fx-letter-spacing: -0.01em;
 }
 
-/* AtlantaFX's default button is 4px radius / 8x12 padding; the reference's .primary button is
-   6px radius, 8x15 padding, weight 600 — match it so every button (not just the accent ones)
-   reads the same as the reference's flatter, slightly more spacious pill shape. */
+/* Per the design spec: only the PRIMARY action is a 6px-radius solid-fill rectangle
+   (.button.accent below) — every other button is a "ghost" pill: transparent, 1px
+   border, 999px radius, muted text, darkening to ink on hover. AtlantaFX's default
+   (4px radius, filled bg) doesn't match either shape, so both are overridden. */
 .button {
-    -fx-background-radius: 6px, 5px;
-    -fx-padding: 8px 15px 8px 15px;
+    -fx-background-color: transparent, transparent;
+    -fx-background-radius: 999px, 998px;
+    -fx-border-color: -color-border-default;
+    -fx-border-radius: 999px;
+    -fx-border-width: 1px;
+    -fx-padding: 5px 12px 5px 12px;
+    -fx-font-size: 12.5px;
+    -fx-text-fill: -color-fg-muted;
+}
+
+.button:hover {
+    -fx-border-color: -color-fg-default;
+    -fx-text-fill: -color-fg-default;
+}
+
+.button .ikonli-font-icon {
+    -fx-icon-color: -color-fg-muted;
+}
+
+.button:hover .ikonli-font-icon {
+    -fx-icon-color: -color-fg-default;
 }
 
 .button.accent {
+    -fx-background-color: -color-accent-emphasis, -color-accent-emphasis;
+    -fx-background-radius: 6px, 5px;
+    -fx-border-color: transparent;
+    -fx-padding: 8px 15px 8px 15px;
+    -fx-font-size: 13.5px;
     -fx-font-family: "Archivo SemiBold";
+    -fx-text-fill: -color-fg-emphasis;
+}
+
+.button.accent:hover {
+    -fx-border-color: transparent;
+    -fx-text-fill: -color-fg-emphasis;
+}
+
+.button.accent .ikonli-font-icon, .button.accent:hover .ikonli-font-icon {
+    -fx-icon-color: -color-fg-emphasis;
+}
+
+.button.danger {
+    -fx-text-fill: -color-danger-fg;
+    -fx-border-color: -color-danger-muted;
+}
+
+.button.danger:hover {
+    -fx-border-color: -color-danger-fg;
+    -fx-text-fill: -color-danger-fg;
+}
+
+.button.danger .ikonli-font-icon {
+    -fx-icon-color: -color-danger-fg;
 }
 
 .nav-button {
@@ -225,6 +274,26 @@
     -fx-font-weight: bold;
 }
 
+/* The reference's tag/chip: 11px, 999px pill, tinted background — used for the ROI note
+   on the Portfolio Value hcell, the one place a badge is genuinely a standalone tag rather
+   than inline colored text next to an icon (badge-* above). */
+.tag {
+    -fx-font-size: 11px;
+    -fx-font-family: "Archivo SemiBold";
+    -fx-padding: 1 7 1 7;
+    -fx-background-radius: 999;
+}
+
+.tag.positive {
+    -fx-background-color: -color-success-subtle;
+    -fx-text-fill: -color-success-fg;
+}
+
+.tag.negative {
+    -fx-background-color: -color-danger-subtle;
+    -fx-text-fill: -color-danger-fg;
+}
+
 .title-1 {
     -fx-font-size: 22px;
 }
@@ -252,6 +321,7 @@
 .icon-button {
     -fx-background-color: -color-accent-muted;
     -fx-background-radius: 999;
+    -fx-border-width: 0;
     -fx-min-width: 32;
     -fx-min-height: 32;
     -fx-max-width: 32;
@@ -289,6 +359,11 @@
     -fx-border-color: -color-accent-emphasis;
     -fx-border-radius: 8;
     -fx-border-width: 1;
+}
+
+/* Inputs/selects: 6px radius per the spec (AtlantaFX default is 4px). */
+.text-field, .combo-box-base {
+    -fx-background-radius: 6px, 5px;
 }
 
 .search-field {

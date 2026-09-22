@@ -340,7 +340,7 @@ public class DashboardView extends VBox {
         VBox cell = new VBox(4, labelText, valueText);
         if (note != null) {
             Label noteLabel = new Label(note);
-            noteLabel.getStyleClass().add(note.startsWith("-") ? "badge-negative" : "badge-positive");
+            noteLabel.getStyleClass().addAll("tag", note.startsWith("-") ? "negative" : "positive");
             cell.getChildren().add(noteLabel);
         }
         cell.getStyleClass().add("hcell");
