@@ -12,9 +12,10 @@ import java.util.List;
 /**
  * Monthly bars with a cumulative line overlaid — the same "runway" chart language used by the
  * Android companion app and the reference design: a flat bar series plus a running-total line
- * in a contrasting accent color, no gridlines or legend cluttering it. A plain Canvas (not a
- * BarChart+LineChart combo) because JavaFX has no native dual-series combo chart, and stacking
- * two independently-axed charts never lines up pixel-perfectly.
+ * in a contrasting accent color, with muted 0/50%/100% gridlines and short-money axis labels
+ * matching the reference's own scale reading. A plain Canvas (not a BarChart+LineChart combo)
+ * because JavaFX has no native dual-series combo chart, and stacking two independently-axed
+ * charts never lines up pixel-perfectly.
  */
 public class RunwayChart extends javafx.scene.layout.Region {
 
@@ -22,6 +23,7 @@ public class RunwayChart extends javafx.scene.layout.Region {
     private static final Color LINE_COLOR = Color.web("#8A6115");
     private static final Color DOT_FILL = Color.web("#F6F7F3");
     private static final Color LABEL_COLOR = Color.web("#556661");
+    private static final Color GRID_COLOR = Color.web("#0D2B2A", 0.16);
 
     private final Canvas canvas = new Canvas();
     private List<String> labels = List.of();
@@ -61,15 +63,28 @@ public class RunwayChart extends javafx.scene.layout.Region {
         gc.clearRect(0, 0, w, h);
         if (values.isEmpty() || w <= 0 || h <= 0) return;
 
-        double paddingSide = 8;
+        double paddingLeft = 46;
+        double paddingRight = 8;
         double paddingTop = 10;
         double paddingBottom = 22;
-        double chartW = w - paddingSide * 2;
+        double chartW = w - paddingLeft - paddingRight;
         double chartH = h - paddingTop - paddingBottom;
 
         double maxValue = Math.max(values.stream().mapToDouble(Double::doubleValue).max().orElse(1), 1);
         double slot = chartW / values.size();
         double barWidth = slot * 0.45;
+
+        // Reference-style gridlines at 0/50%/100% with short-money axis labels.
+        gc.setStroke(GRID_COLOR);
+        gc.setLineWidth(1);
+        gc.setTextAlign(TextAlignment.RIGHT);
+        gc.setTextBaseline(VPos.CENTER);
+        for (double fraction : new double[] {0, 0.5, 1.0}) {
+            double y = paddingTop + chartH - fraction * chartH;
+            gc.strokeLine(paddingLeft, y, w - paddingRight, y);
+            gc.setFill(LABEL_COLOR);
+            gc.fillText(fraction == 0 ? "0" : shortMoney(maxValue * fraction), paddingLeft - 6, y);
+        }
 
         double running = 0;
         double[] cumValues = new double[values.size()];
@@ -84,7 +99,7 @@ public class RunwayChart extends javafx.scene.layout.Region {
 
         gc.setFill(BAR_COLOR);
         for (int i = 0; i < values.size(); i++) {
-            double cx = paddingSide + slot * i + slot / 2;
+            double cx = paddingLeft + slot * i + slot / 2;
             double barH = values.get(i) / maxValue * chartH;
             double top = paddingTop + (chartH - barH);
             gc.fillRoundRect(cx - barWidth / 2, top, barWidth, barH, 4, 4);
@@ -117,5 +132,13 @@ public class RunwayChart extends javafx.scene.layout.Region {
             gc.setLineWidth(1.8);
             gc.strokeOval(px[i] - 4, py[i] - 4, 8, 8);
         }
+    }
+
+    /** Indian-style short money: Cr / L / k thresholds, matching the reference's axis labels. */
+    private String shortMoney(double value) {
+        if (value >= 1_00_00_000) return currencySymbol + String.format("%.2fCr", value / 1_00_00_000.0);
+        if (value >= 1_00_000) return currencySymbol + String.format("%.2fL", value / 1_00_000.0);
+        if (value >= 1_000) return currencySymbol + String.format("%.0fk", value / 1_000.0);
+        return currencySymbol + String.format("%.0f", value);
     }
 }

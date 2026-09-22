@@ -223,6 +223,7 @@ public class DashboardView extends VBox {
     /** Trend over time -> area chart (gradient fill under the line), single series in the accent hue. */
     private VBox buildTrendChart() {
         LinkedHashMap<String, Double> monthly = expenseDao.monthlyTotals(TREND_MONTHS);
+        double total = monthly.values().stream().mapToDouble(Double::doubleValue).sum();
 
         RunwayChart chart = new RunwayChart();
         chart.setPrefHeight(200);
@@ -233,7 +234,22 @@ public class DashboardView extends VBox {
                 new java.util.ArrayList<>(monthly.values()),
                 symbol);
 
-        return chartCard("Monthly Spending Trend", chart);
+        // Title + a live readout on the same row (right-aligned) — matching the reference's
+        // "Maturity runway" header, which always pairs the chart title with a summary reading.
+        Label heading = new Label("Monthly Spending Trend");
+        heading.getStyleClass().add("title-3");
+        Label readout = new Label(total > 0
+                ? String.format("%s spent across the last %d months", currency(total), TREND_MONTHS)
+                : "Nothing spent in this window");
+        readout.getStyleClass().add("text-caption");
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox headingRow = new HBox(10, heading, spacer, readout);
+        headingRow.setAlignment(Pos.CENTER_LEFT);
+
+        VBox section = new VBox(10, headingRow, chart);
+        VBox.setVgrow(chart, Priority.ALWAYS);
+        return section;
     }
 
     /** Part-to-whole across an open-ended set of categories -> the reference's concentration bar,
