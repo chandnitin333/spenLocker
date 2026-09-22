@@ -306,6 +306,19 @@
     -fx-text-fill: -color-danger-fg;
 }
 
+.tag.warning {
+    -fx-background-color: -color-warning-subtle;
+    -fx-text-fill: -color-warning-fg;
+}
+
+.tag.neutral {
+    -fx-background-color: transparent;
+    -fx-border-color: -color-border-default;
+    -fx-border-radius: 999;
+    -fx-text-fill: -color-fg-muted;
+    -fx-font-family: "Archivo";
+}
+
 .title-1 {
     -fx-font-size: 22px;
 }
