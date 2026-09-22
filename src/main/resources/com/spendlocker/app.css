@@ -1,3 +1,49 @@
+/*
+ * Ledger theme — repaints AtlantaFX's own semantic color tokens to match the reference design
+ * (wealth-book.html): a flat "paper" background, deep teal accent, brass for secondary accents,
+ * and a serif headline face. Overriding the tokens AtlantaFX's own controls already consume
+ * (buttons, tables, text fields, dialogs...) means every screen and form field re-themes
+ * consistently from this one place, instead of hand-restyling each view individually.
+ */
+.root {
+    -color-fg-default: #0D2B2A;
+    -color-fg-muted: #556661;
+    -color-fg-subtle: #556661;
+    -color-fg-emphasis: #EDEFE9;
+    -color-bg-default: #EDEFE9;
+    -color-bg-overlay: #F6F7F3;
+    -color-bg-subtle: #F6F7F3;
+    -color-bg-inset: #F6F7F3;
+    -color-border-default: rgba(13, 43, 42, .16);
+    -color-border-muted: rgba(13, 43, 42, .16);
+    -color-border-subtle: rgba(13, 43, 42, .09);
+    -color-shadow-default: rgba(13, 43, 42, .16);
+    -color-neutral-emphasis-plus: #0D2B2A;
+    -color-neutral-emphasis: #556661;
+    -color-neutral-muted: rgba(19, 80, 73, .09);
+    -color-neutral-subtle: rgba(19, 80, 73, .05);
+    -color-accent-fg: #135049;
+    -color-accent-emphasis: #135049;
+    -color-accent-muted: rgba(19, 80, 73, .4);
+    -color-accent-subtle: rgba(19, 80, 73, .09);
+    -color-warning-fg: #9A6A12;
+    -color-warning-emphasis: #9A6A12;
+    -color-warning-muted: rgba(154, 106, 18, .4);
+    -color-warning-subtle: rgba(154, 106, 18, .12);
+    -color-success-fg: #2C7A6E;
+    -color-success-emphasis: #2C7A6E;
+    -color-success-muted: rgba(44, 122, 110, .4);
+    -color-success-subtle: rgba(44, 122, 110, .12);
+    -color-danger-fg: #A32D2D;
+    -color-danger-emphasis: #A32D2D;
+    -color-danger-muted: rgba(163, 45, 45, .4);
+    -color-danger-subtle: rgba(163, 45, 45, .12);
+}
+
+.title-1, .title-2, .title-3 {
+    -fx-font-family: "Georgia", "Times New Roman", serif;
+}
+
 .shell {
     -fx-background-color: -color-bg-default;
 }

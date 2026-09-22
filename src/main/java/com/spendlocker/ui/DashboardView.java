@@ -151,30 +151,14 @@ public class DashboardView extends VBox {
     private VBox buildTrendChart() {
         LinkedHashMap<String, Double> monthly = expenseDao.monthlyTotals(TREND_MONTHS);
 
-        CategoryAxis xAxis = new CategoryAxis();
-        NumberAxis yAxis = new NumberAxis();
-        yAxis.setForceZeroInRange(true);
-        javafx.scene.chart.AreaChart<String, Number> chart = new javafx.scene.chart.AreaChart<>(xAxis, yAxis);
-        chart.setLegendVisible(false);
-        chart.setCreateSymbols(true);
-        chart.setAnimated(false);
-        chart.setPrefHeight(240);
-        chart.getStyleClass().add("trend-chart");
-
-        XYChart.Series<String, Number> series = new XYChart.Series<>();
-        monthly.forEach((month, total) -> {
-            XYChart.Data<String, Number> point = new XYChart.Data<>(formatMonth(month), total);
-            series.getData().add(point);
-        });
-        chart.getData().add(series);
-
-        for (XYChart.Data<String, Number> point : series.getData()) {
-            point.nodeProperty().addListener((obs, oldNode, newNode) -> {
-                if (newNode != null) {
-                    Tooltip.install(newNode, new Tooltip(point.getXValue() + ": " + currency(point.getYValue().doubleValue())));
-                }
-            });
-        }
+        RunwayChart chart = new RunwayChart();
+        chart.setPrefHeight(200);
+        chart.setMinHeight(200);
+        String symbol = NumberFormat.getCurrencyInstance(Locale.getDefault()).getCurrency().getSymbol();
+        chart.setData(
+                monthly.keySet().stream().map(this::formatMonth).toList(),
+                new java.util.ArrayList<>(monthly.values()),
+                symbol);
 
         return chartCard("Monthly Spending Trend", chart);
     }
