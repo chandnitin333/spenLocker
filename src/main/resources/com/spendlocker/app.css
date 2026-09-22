@@ -67,6 +67,18 @@
     -fx-letter-spacing: -0.01em;
 }
 
+.brand-title-accent {
+    -fx-font-style: italic;
+    -fx-text-fill: -color-success-emphasis;
+}
+
+.brand-tagline {
+    -fx-font-family: "Archivo";
+    -fx-font-size: 8.5px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -color-fg-muted;
+}
+
 /* Per the design spec: only the PRIMARY action is a 6px-radius solid-fill rectangle
    (.button.accent below) — every other button is a "ghost" pill: transparent, 1px
    border, 999px radius, muted text, darkening to ink on hover. AtlantaFX's default

@@ -24,7 +24,7 @@ public class LoginDialog {
 
         Dialog<LoginResult> dialog = new Dialog<>();
         com.spendlocker.util.DialogUtil.styleWith(dialog.getDialogPane());
-        dialog.setTitle("SpendLocker");
+        dialog.setTitle("Wealth Book");
         dialog.setHeaderText(firstRun
                 ? "Create a master password for your new encrypted vault"
                 : "Enter your master password to unlock the vault");

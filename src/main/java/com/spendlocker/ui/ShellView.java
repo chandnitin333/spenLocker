@@ -63,9 +63,23 @@ public class ShellView extends BorderPane {
         Label brandIcon = new Label();
         brandIcon.setGraphic(new FontIcon(Feather.LOCK));
         brandIcon.getStyleClass().add("brand-icon");
-        Label brandLabel = new Label("SpendLocker");
-        brandLabel.getStyleClass().add("brand-title");
-        HBox brandRow = new HBox(8, brandIcon, brandLabel);
+
+        // "Wealth Book" wordmark, matching the reference's own masthead exactly: regular weight
+        // "Wealth" + italic accent-colored "Book", with the uppercase tagline underneath.
+        Label brandWealth = new Label("Wealth ");
+        brandWealth.getStyleClass().add("brand-title");
+        Label brandBook = new Label("Book");
+        brandBook.getStyleClass().addAll("brand-title", "brand-title-accent");
+        HBox wordmark = new HBox(brandWealth, brandBook);
+        wordmark.setAlignment(Pos.BASELINE_LEFT);
+
+        Label tagline = new Label("PERSONAL WEALTH MANAGEMENT");
+        tagline.getStyleClass().add("brand-tagline");
+        tagline.setWrapText(true);
+
+        VBox brandText = new VBox(2, wordmark, tagline);
+
+        HBox brandRow = new HBox(8, brandIcon, brandText);
         brandRow.setAlignment(Pos.CENTER_LEFT);
         brandRow.setPadding(new Insets(4, 8, 16, 8));
 

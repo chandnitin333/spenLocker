@@ -90,7 +90,7 @@ public class MainApp extends Application {
 
         Scene loadingScene = new Scene(box, 420, 280);
         loadingScene.getStylesheets().add(getClass().getResource("/com/spendlocker/app.css").toExternalForm());
-        primaryStage.setTitle("SpendLocker");
+        primaryStage.setTitle("Wealth Book");
         primaryStage.setScene(loadingScene);
         primaryStage.show();
     }
@@ -107,7 +107,7 @@ public class MainApp extends Application {
         scene.getAccelerators().put(
                 new KeyCodeCombination(KeyCode.N, KeyCombination.SHORTCUT_DOWN), shell::triggerAdd);
 
-        primaryStage.setTitle("SpendLocker — Personal Finance & Document Vault");
+        primaryStage.setTitle("Wealth Book — Personal Wealth Management");
         primaryStage.setScene(scene);
         primaryStage.setOnCloseRequest(e -> DatabaseManager.getInstance().close());
         primaryStage.show();
