@@ -44,6 +44,14 @@ public class ShellView extends BorderPane {
         this.depositsBtn.setSelected(true);
         this.currentAddAction = this.depositsView::triggerAddAction;
     });
+    private final PeopleView peopleView = new PeopleView(depositor -> {
+        this.depositsView.refresh();
+        this.depositsView.filterByDepositor(depositor);
+        this.setCenter(this.depositsView);
+        this.depositsBtn.setSelected(true);
+        this.currentAddAction = this.depositsView::triggerAddAction;
+    });
+    private final InterestByYearView interestByYearView = new InterestByYearView();
     private final DocumentsView documentsView = new DocumentsView();
     private final TrashView trashView = new TrashView();
     private final SettingsView settingsView = new SettingsView();
@@ -55,6 +63,8 @@ public class ShellView extends BorderPane {
     private ToggleButton investmentsBtn;
     private ToggleButton depositsBtn;
     private ToggleButton banksBtn;
+    private ToggleButton peopleBtn;
+    private ToggleButton interestByYearBtn;
     private ToggleButton documentsBtn;
     private TextField searchField;
     private Runnable currentAddAction;
@@ -109,6 +119,8 @@ public class ShellView extends BorderPane {
         ToggleButton dashboardBtn = navButton("Dashboard", Feather.HOME, group, true);
         depositsBtn = navButton("Deposits", Feather.CREDIT_CARD, group, false);
         banksBtn = navButton("Banks", Feather.PIE_CHART, group, false);
+        peopleBtn = navButton("People", Feather.USERS, group, false);
+        interestByYearBtn = navButton("Interest by Year", Feather.BAR_CHART_2, group, false);
         expensesBtn = navButton("Expenses", Feather.CREDIT_CARD, group, false);
         investmentsBtn = navButton("Investments", Feather.TRENDING_UP, group, false);
         documentsBtn = navButton("Documents", Feather.FOLDER, group, false);
@@ -118,6 +130,8 @@ public class ShellView extends BorderPane {
         dashboardBtn.setOnAction(e -> { dashboardView.refresh(); setCenter(dashboardScroll); currentAddAction = null; });
         depositsBtn.setOnAction(e -> { depositsView.refresh(); setCenter(depositsView); currentAddAction = depositsView::triggerAddAction; });
         banksBtn.setOnAction(e -> { banksView.refresh(); setCenter(banksView); currentAddAction = null; });
+        peopleBtn.setOnAction(e -> { peopleView.refresh(); setCenter(peopleView); currentAddAction = null; });
+        interestByYearBtn.setOnAction(e -> { interestByYearView.refresh(); setCenter(interestByYearView); currentAddAction = null; });
         expensesBtn.setOnAction(e -> { expensesView.refresh(); setCenter(expensesView); currentAddAction = expensesView::triggerAddAction; });
         investmentsBtn.setOnAction(e -> { investmentsView.refresh(); setCenter(investmentsView); currentAddAction = investmentsView::triggerAddAction; });
         documentsBtn.setOnAction(e -> { documentsView.refresh(); setCenter(documentsView); currentAddAction = null; });
@@ -127,7 +141,8 @@ public class ShellView extends BorderPane {
         Region spacer = new Region();
         VBox.setVgrow(spacer, Priority.ALWAYS);
 
-        sidebar.getChildren().addAll(brandRow, searchBox, dashboardBtn, depositsBtn, banksBtn, expensesBtn, investmentsBtn, documentsBtn, trashBtn, spacer, settingsBtn);
+        sidebar.getChildren().addAll(brandRow, searchBox, dashboardBtn, depositsBtn, banksBtn, peopleBtn, interestByYearBtn,
+                expensesBtn, investmentsBtn, documentsBtn, trashBtn, spacer, settingsBtn);
         return sidebar;
     }
 

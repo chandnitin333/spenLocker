@@ -136,6 +136,11 @@ public class DepositsView extends BorderPane {
         applyFilter();
     }
 
+    /** Drill-down from the People screen — the same search box matches depositor or bank. */
+    public void filterByDepositor(String depositor) {
+        filterByBank(depositor);
+    }
+
     private void applyFilter() {
         String query = searchField.getText() == null ? "" : searchField.getText().trim().toLowerCase(Locale.ROOT);
         filteredData.setPredicate(fd -> matchesStatus(fd) && matchesSearch(fd, query));
