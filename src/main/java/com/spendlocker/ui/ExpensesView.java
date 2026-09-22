@@ -61,6 +61,7 @@ public class ExpensesView extends BorderPane {
     private final FilteredList<Expense> filteredData = new FilteredList<>(data, e -> true);
     private final ComboBox<String> dateRangeFilter = new ComboBox<>();
     private final ComboBox<String> categoryFilter = new ComboBox<>();
+    private final TextField searchField = new TextField();
 
     public ExpensesView() {
         setPadding(new Insets(24));
@@ -110,7 +111,13 @@ public class ExpensesView extends BorderPane {
         categoryFilter.setValue(ALL_CATEGORIES);
         categoryFilter.setOnAction(e -> applyFilter());
 
-        HBox filterBar = new HBox(10, new Label("Period:", new FontIcon(Feather.FILTER)), dateRangeFilter,
+        searchField.setPromptText("Search merchant, category or notes");
+        searchField.getStyleClass().add("search-field");
+        searchField.setPrefWidth(260);
+        searchField.textProperty().addListener((obs, old, val) -> applyFilter());
+
+        HBox filterBar = new HBox(10, searchField,
+                new Label("Period:", new FontIcon(Feather.FILTER)), dateRangeFilter,
                 new Label("Category:"), categoryFilter);
         filterBar.setAlignment(Pos.CENTER_LEFT);
         filterBar.setPadding(new Insets(0, 0, 16, 0));
@@ -166,8 +173,21 @@ public class ExpensesView extends BorderPane {
     private void applyFilter() {
         String range = dateRangeFilter.getValue();
         String category = categoryFilter.getValue();
+        String query = searchField.getText() == null ? "" : searchField.getText().trim().toLowerCase(Locale.ROOT);
         filteredData.setPredicate(expense -> matchesDateRange(expense.getTransactionDate(), range)
-                && (ALL_CATEGORIES.equals(category) || category == null || category.equals(expense.getCategory())));
+                && (ALL_CATEGORIES.equals(category) || category == null || category.equals(expense.getCategory()))
+                && matchesSearch(expense, query));
+    }
+
+    private boolean matchesSearch(Expense expense, String query) {
+        if (query.isEmpty()) return true;
+        return containsIgnoreCase(expense.getMerchantOrVendor(), query)
+                || containsIgnoreCase(expense.getCategory(), query)
+                || containsIgnoreCase(expense.getNotes(), query);
+    }
+
+    private boolean containsIgnoreCase(String value, String query) {
+        return value != null && value.toLowerCase(Locale.ROOT).contains(query);
     }
 
     private boolean matchesDateRange(String transactionDate, String range) {

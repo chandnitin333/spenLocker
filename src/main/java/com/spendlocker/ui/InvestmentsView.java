@@ -58,6 +58,7 @@ public class InvestmentsView extends BorderPane {
     private final FilteredList<Investment> filteredData = new FilteredList<>(data, i -> true);
     private final ComboBox<String> typeFilter = new ComboBox<>();
     private final ComboBox<String> dateRangeFilter = new ComboBox<>();
+    private final TextField searchField = new TextField();
 
     public InvestmentsView() {
         setPadding(new Insets(24));
@@ -93,7 +94,12 @@ public class InvestmentsView extends BorderPane {
         dateRangeFilter.setValue(ALL_TIME);
         dateRangeFilter.setOnAction(e -> applyFilters());
 
-        HBox filterBar = new HBox(10,
+        searchField.setPromptText("Search asset, ticker or notes");
+        searchField.getStyleClass().add("search-field");
+        searchField.setPrefWidth(260);
+        searchField.textProperty().addListener((obs, old, val) -> applyFilters());
+
+        HBox filterBar = new HBox(10, searchField,
                 new Label("Category:", new FontIcon(Feather.FILTER)), typeFilter,
                 new Label("Purchased:"), dateRangeFilter);
         filterBar.setAlignment(Pos.CENTER_LEFT);
@@ -156,9 +162,22 @@ public class InvestmentsView extends BorderPane {
     private void applyFilters() {
         String type = typeFilter.getValue();
         String range = dateRangeFilter.getValue();
+        String query = searchField.getText() == null ? "" : searchField.getText().trim().toLowerCase(Locale.ROOT);
         filteredData.setPredicate(investment ->
                 (ALL_TYPES.equals(type) || investment.getInvestmentType().equals(type))
-                        && matchesDateRange(investment.getPurchaseDate(), range));
+                        && matchesDateRange(investment.getPurchaseDate(), range)
+                        && matchesSearch(investment, query));
+    }
+
+    private boolean matchesSearch(Investment investment, String query) {
+        if (query.isEmpty()) return true;
+        return containsIgnoreCase(investment.getAssetName(), query)
+                || containsIgnoreCase(investment.getAssetTicker(), query)
+                || containsIgnoreCase(investment.getNotes(), query);
+    }
+
+    private boolean containsIgnoreCase(String value, String query) {
+        return value != null && value.toLowerCase(Locale.ROOT).contains(query);
     }
 
     private boolean matchesDateRange(String purchaseDate, String range) {

@@ -146,29 +146,28 @@
 }
 
 .table-view .column-header-background {
-    -fx-background-color: -color-bg-subtle;
+    -fx-background-color: transparent;
     -fx-background-radius: 10 10 0 0;
 }
 
 .table-view .column-header, .table-view .filler {
     -fx-background-color: transparent;
-    -fx-border-color: transparent transparent -color-border-default transparent;
-    -fx-border-width: 0 0 1 0;
+    -fx-border-color: transparent transparent -color-fg-default transparent;
+    -fx-border-width: 0 0 1.5 0;
 }
 
 .table-view .column-header .label {
-    -fx-font-weight: bold;
+    -fx-font-family: "Archivo SemiBold";
+    -fx-font-size: 12px;
     -fx-text-fill: -color-fg-muted;
 }
 
+/* Flat, hairline-divided rows — the reference has no zebra striping, just a 1px line-soft
+   divider between rows on the same paper background. */
 .table-row-cell {
     -fx-background-color: -color-bg-default;
     -fx-border-color: transparent transparent -color-border-subtle transparent;
     -fx-table-cell-border-color: transparent;
-}
-
-.table-row-cell:odd {
-    -fx-background-color: -color-bg-subtle;
 }
 
 .table-row-cell:selected {
@@ -265,8 +264,41 @@
 }
 
 .search-field {
-    -fx-background-radius: 8;
+    -fx-background-color: -color-bg-subtle;
+    -fx-background-radius: 6;
+    -fx-border-color: -color-border-default;
+    -fx-border-radius: 6;
+    -fx-padding: 7 10 7 10;
     -fx-prompt-text-fill: -color-fg-muted;
+}
+
+/* The reference's segmented filter toggle (Active/Matured/All) — a bordered pill group with a
+   flat divider between buttons instead of separate pill-shaped ToggleButtons. */
+.seg-group {
+    -fx-background-color: -color-bg-subtle;
+    -fx-border-color: -color-border-default;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+}
+
+.seg-group .toggle-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 0;
+    -fx-text-fill: -color-fg-muted;
+    -fx-font-size: 13px;
+    -fx-padding: 6 12 6 12;
+    -fx-border-color: transparent -color-border-default transparent transparent;
+    -fx-border-width: 0 1 0 0;
+}
+
+.seg-group .toggle-button:last-of-type {
+    -fx-border-width: 0;
+}
+
+.seg-group .toggle-button:selected {
+    -fx-background-color: -color-border-subtle;
+    -fx-text-fill: -color-fg-default;
+    -fx-font-family: "Archivo SemiBold";
 }
 
 /* Monthly spending trend: a soft gradient fill under the line, recessive axes/grid so the
