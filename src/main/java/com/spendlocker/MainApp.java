@@ -13,10 +13,15 @@ import com.spendlocker.ui.dialog.RecoveryKeyDisplayDialog;
 import com.spendlocker.util.AlertUtil;
 import com.spendlocker.util.DialogUtil;
 import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 import java.util.List;
@@ -27,11 +32,68 @@ public class MainApp extends Application {
     public void start(Stage primaryStage) {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> DatabaseManager.getInstance().close()));
         ThemeManager.LIGHT.apply();
+        promptForLogin(primaryStage);
+    }
 
-        if (!unlockVault()) {
-            javafx.application.Platform.exit();
-            return;
+    /** Shows the login dialog; on cancel, quits — nothing about this step is slow enough to need a loader. */
+    private void promptForLogin(Stage primaryStage) {
+        LoginResult result = LoginDialog.prompt();
+        switch (result.type()) {
+            case CANCELLED:
+                Platform.exit();
+                return;
+            case ALREADY_UNLOCKED:
+                launchMainWindow(primaryStage);
+                return;
+            case PASSWORD:
+                unlockVaultWithLoadingScreen(primaryStage, result.password());
+                return;
         }
+    }
+
+    /**
+     * Decrypting/opening the vault (and running any pending schema migration) can take a
+     * noticeable moment, and was previously done directly on the FX thread with zero feedback —
+     * the window just sat there looking frozen. Runs it in the background instead, with a
+     * visible "Unlocking vault…" screen so a slow open never looks like a hang.
+     */
+    private void unlockVaultWithLoadingScreen(Stage primaryStage, String password) {
+        showLoadingScreen(primaryStage, "Unlocking vault…");
+        new Thread(() -> {
+            try {
+                DatabaseManager.getInstance().open(password);
+                Platform.runLater(() -> {
+                    showRecoveryKeyIfJustGenerated();
+                    launchMainWindow(primaryStage);
+                });
+            } catch (VaultLockedException e) {
+                Platform.runLater(() -> {
+                    AlertUtil.error("Unable to unlock vault", e.getMessage());
+                    promptForLogin(primaryStage);
+                });
+            }
+        }, "vault-unlock").start();
+    }
+
+    private void showLoadingScreen(Stage primaryStage, String message) {
+        ProgressIndicator spinner = new ProgressIndicator();
+        spinner.setPrefSize(56, 56);
+        spinner.setMaxSize(56, 56);
+        Label label = new Label(message);
+        label.getStyleClass().add("title-3");
+        VBox box = new VBox(16, spinner, label);
+        box.setAlignment(Pos.CENTER);
+        box.setPrefSize(420, 280);
+        box.getStyleClass().add("shell");
+
+        Scene loadingScene = new Scene(box, 420, 280);
+        loadingScene.getStylesheets().add(getClass().getResource("/com/spendlocker/app.css").toExternalForm());
+        primaryStage.setTitle("SpendLocker");
+        primaryStage.setScene(loadingScene);
+        primaryStage.show();
+    }
+
+    private void launchMainWindow(Stage primaryStage) {
         ThemeManager.loadSaved(new AppConfig()).apply();
         runDueRecurringExpenses();
 
@@ -57,27 +119,6 @@ public class MainApp extends Application {
         if (!created.isEmpty()) {
             AlertUtil.info("Recurring expenses added",
                     created.size() + " recurring expense(s) were added: " + String.join(", ", created));
-        }
-    }
-
-    private boolean unlockVault() {
-        while (true) {
-            LoginResult result = LoginDialog.prompt();
-            switch (result.type()) {
-                case CANCELLED:
-                    return false;
-                case ALREADY_UNLOCKED:
-                    return true;
-                case PASSWORD:
-                    try {
-                        DatabaseManager.getInstance().open(result.password());
-                        showRecoveryKeyIfJustGenerated();
-                        return true;
-                    } catch (VaultLockedException e) {
-                        AlertUtil.error("Unable to unlock vault", e.getMessage());
-                    }
-                    break;
-            }
         }
     }
 

@@ -12,6 +12,7 @@ import com.spendlocker.ui.dialog.InvestmentFormDialog;
 import com.spendlocker.util.AlertUtil;
 import com.spendlocker.util.DialogUtil;
 import com.spendlocker.util.FinancialYear;
+import com.spendlocker.util.LoadingButton;
 import com.spendlocker.util.TableColumnUtil;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeBrands;
 import javafx.beans.property.SimpleObjectProperty;
@@ -301,7 +302,7 @@ public class InvestmentsView extends BorderPane {
      */
     private void onSyncToDrive(Button trigger) {
         List<Investment> snapshot = investmentDao.findAll();
-        trigger.setDisable(true);
+        LoadingButton.startLoading(trigger);
         SessionGuard.suspendAutoLock();
         new Thread(() -> {
             try {
@@ -313,13 +314,13 @@ public class InvestmentsView extends BorderPane {
                 sheetsService.syncInvestments(snapshot);
                 javafx.application.Platform.runLater(() -> {
                     SessionGuard.resumeAutoLock();
-                    trigger.setDisable(false);
+                    LoadingButton.stopLoading(trigger);
                     AlertUtil.info("Synced", snapshot.size() + " investments synced to Google Sheets.");
                 });
             } catch (Exception ex) {
                 javafx.application.Platform.runLater(() -> {
                     SessionGuard.resumeAutoLock();
-                    trigger.setDisable(false);
+                    LoadingButton.stopLoading(trigger);
                     AlertUtil.error("Sync failed", ex.getMessage());
                 });
             }
