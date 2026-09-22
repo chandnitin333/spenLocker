@@ -47,7 +47,9 @@ public class GoogleDriveService {
     private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
     // mail.google.com is the Gmail IMAP/SMTP scope — requesting it up front lets Email Attachment
     // Sync reuse this same "Sign in with Google" session instead of asking for a separate password.
-    private static final List<String> SCOPES = List.of(DriveScopes.DRIVE_FILE, "https://mail.google.com/");
+    // spreadsheets backs the cross-device Sync button (desktop + Android both read/write the same sheet).
+    private static final List<String> SCOPES = List.of(
+            DriveScopes.DRIVE_FILE, "https://mail.google.com/", "https://www.googleapis.com/auth/spreadsheets");
 
     private static final Path CLIENT_SECRET_PATH =
             Path.of(DatabaseManager.vaultDirectory(), "google-client-secret.json");
@@ -57,7 +59,7 @@ public class GoogleDriveService {
     // (e.g. IMAP "authentication failed") instead of prompting for the extra consent. Pointing
     // already-signed-in users at a fresh, empty directory forces exactly one new consent screen.
     private static final Path TOKENS_DIRECTORY_PATH =
-            Path.of(DatabaseManager.vaultDirectory(), "google-tokens-v2");
+            Path.of(DatabaseManager.vaultDirectory(), "google-tokens-v3");
 
     private Drive drive;
     private com.google.api.client.auth.oauth2.Credential credential;
@@ -106,6 +108,12 @@ public class GoogleDriveService {
     /** The email address of the connected Google account, or null if not signed in. */
     public String signedInEmail() {
         return signedInEmail;
+    }
+
+    /** Shared credential, for other Google API clients (e.g. Sheets) that piggyback on this same sign-in. */
+    public com.google.api.client.auth.oauth2.Credential credential() {
+        requireSignedIn();
+        return credential;
     }
 
     /**

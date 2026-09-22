@@ -3,6 +3,8 @@ package com.spendlocker.ui;
 import com.spendlocker.dao.InvestmentDao;
 import com.spendlocker.excel.ExcelImportService;
 import com.spendlocker.excel.InvestmentColumnMapping;
+import com.spendlocker.google.GoogleDriveService;
+import com.spendlocker.google.GoogleSheetsService;
 import com.spendlocker.model.Investment;
 import com.spendlocker.model.InvestmentType;
 import com.spendlocker.ui.dialog.InvestmentColumnMappingDialog;
@@ -11,6 +13,7 @@ import com.spendlocker.util.AlertUtil;
 import com.spendlocker.util.DialogUtil;
 import com.spendlocker.util.FinancialYear;
 import com.spendlocker.util.TableColumnUtil;
+import org.kordamp.ikonli.fontawesome5.FontAwesomeBrands;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -47,6 +50,8 @@ public class InvestmentsView extends BorderPane {
 
     private final InvestmentDao investmentDao = new InvestmentDao();
     private final ExcelImportService excelImportService = new ExcelImportService();
+    private final GoogleDriveService driveService = GoogleDriveService.getInstance();
+    private final GoogleSheetsService sheetsService = new GoogleSheetsService();
     private final TableView<Investment> table = new TableView<>();
     private final ObservableList<Investment> data = FXCollections.observableArrayList();
     private final FilteredList<Investment> filteredData = new FilteredList<>(data, i -> true);
@@ -58,6 +63,9 @@ public class InvestmentsView extends BorderPane {
 
         Label title = new Label("Investments", new FontIcon(Feather.TRENDING_UP));
         title.getStyleClass().add("title-1");
+
+        Button syncButton = new Button("Sync", new FontIcon(FontAwesomeBrands.GOOGLE_DRIVE));
+        syncButton.setOnAction(e -> onSyncToDrive(syncButton));
 
         Button addButton = new Button("Add Investment", new FontIcon(Feather.PLUS));
         addButton.getStyleClass().add("accent");
@@ -72,7 +80,7 @@ public class InvestmentsView extends BorderPane {
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        HBox toolbar = new HBox(10, title, spacer, importButton, addButton, editButton, deleteButton);
+        HBox toolbar = new HBox(10, title, spacer, syncButton, importButton, addButton, editButton, deleteButton);
         toolbar.setAlignment(Pos.CENTER_LEFT);
         toolbar.setPadding(new Insets(0, 0, 12, 0));
 
@@ -285,6 +293,36 @@ public class InvestmentsView extends BorderPane {
         // needless scrollbar on a narrow one). Actions stays fixed; +20 covers the scrollbar/border.
         TableColumnUtil.bindProportionalWidths(table, actionsCol.getPrefWidth() + 20,
                 nameCol, tickerCol, typeCol, purchaseDateCol, principalCol, unitsCol, unitPriceCol, currentValueCol, roiCol);
+    }
+
+    /**
+     * Pushes every investment to the shared "SpendLocker Sync" Google Sheet, overwriting its
+     * Investments tab — the same sheet the Android companion app reads/writes.
+     */
+    private void onSyncToDrive(Button trigger) {
+        if (!driveService.isSignedIn()) {
+            AlertUtil.error("Sync failed", "Sign in with Google first (see the Google Drive section in Settings).");
+            return;
+        }
+        List<Investment> snapshot = investmentDao.findAll();
+        trigger.setDisable(true);
+        SessionGuard.suspendAutoLock();
+        new Thread(() -> {
+            try {
+                sheetsService.syncInvestments(snapshot);
+                javafx.application.Platform.runLater(() -> {
+                    SessionGuard.resumeAutoLock();
+                    trigger.setDisable(false);
+                    AlertUtil.info("Synced", snapshot.size() + " investments synced to Google Sheets.");
+                });
+            } catch (Exception ex) {
+                javafx.application.Platform.runLater(() -> {
+                    SessionGuard.resumeAutoLock();
+                    trigger.setDisable(false);
+                    AlertUtil.error("Sync failed", ex.getMessage());
+                });
+            }
+        }, "sheets-sync-investments").start();
     }
 
     private void onAdd() {

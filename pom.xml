@@ -24,6 +24,7 @@
         <google.api.client.version>2.6.0</google.api.client.version>
         <google.oauth.client.version>1.36.0</google.oauth.client.version>
         <google.drive.version>v3-rev20240914-2.0.0</google.drive.version>
+        <google.sheets.version>v4-rev20250603-2.0.0</google.sheets.version>
         <ikonli.version>12.4.0</ikonli.version>
         <junit.version>5.12.2</junit.version>
     </properties>
@@ -118,6 +119,11 @@
             <groupId>com.google.apis</groupId>
             <artifactId>google-api-services-drive</artifactId>
             <version>${google.drive.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.apis</groupId>
+            <artifactId>google-api-services-sheets</artifactId>
+            <version>${google.sheets.version}</version>
         </dependency>
 
         <!-- Logging -->

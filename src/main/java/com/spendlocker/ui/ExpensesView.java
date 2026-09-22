@@ -5,6 +5,8 @@ import com.spendlocker.excel.ColumnMapping;
 import com.spendlocker.excel.CsvService;
 import com.spendlocker.excel.ExcelExportService;
 import com.spendlocker.excel.ExcelImportService;
+import com.spendlocker.google.GoogleDriveService;
+import com.spendlocker.google.GoogleSheetsService;
 import com.spendlocker.model.Expense;
 import com.spendlocker.ui.dialog.ColumnMappingDialog;
 import com.spendlocker.ui.dialog.ExpenseFormDialog;
@@ -12,6 +14,7 @@ import com.spendlocker.util.AlertUtil;
 import com.spendlocker.util.DialogUtil;
 import com.spendlocker.util.FinancialYear;
 import com.spendlocker.util.TableColumnUtil;
+import org.kordamp.ikonli.fontawesome5.FontAwesomeBrands;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -50,6 +53,8 @@ public class ExpensesView extends BorderPane {
     private final ExcelExportService excelExportService = new ExcelExportService();
     private final ExcelImportService excelImportService = new ExcelImportService();
     private final CsvService csvService = new CsvService();
+    private final GoogleDriveService driveService = GoogleDriveService.getInstance();
+    private final GoogleSheetsService sheetsService = new GoogleSheetsService();
     private final TableView<Expense> table = new TableView<>();
     private final ObservableList<Expense> data = FXCollections.observableArrayList();
     private final FilteredList<Expense> filteredData = new FilteredList<>(data, e -> true);
@@ -61,6 +66,9 @@ public class ExpensesView extends BorderPane {
 
         Label title = new Label("Expenses", new FontIcon(Feather.CREDIT_CARD));
         title.getStyleClass().add("title-1");
+
+        Button syncButton = new Button("Sync", new FontIcon(FontAwesomeBrands.GOOGLE_DRIVE));
+        syncButton.setOnAction(e -> onSyncToDrive(syncButton));
 
         Button addButton = new Button("Add Expense", new FontIcon(Feather.PLUS));
         addButton.getStyleClass().add("accent");
@@ -89,7 +97,7 @@ public class ExpensesView extends BorderPane {
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        HBox toolbar = new HBox(10, title, spacer, importMenu, exportMenu, addButton, duplicateButton, editButton, deleteButton);
+        HBox toolbar = new HBox(10, title, spacer, syncButton, importMenu, exportMenu, addButton, duplicateButton, editButton, deleteButton);
         toolbar.setAlignment(Pos.CENTER_LEFT);
         toolbar.setPadding(new Insets(0, 0, 12, 0));
 
@@ -241,6 +249,37 @@ public class ExpensesView extends BorderPane {
         // needless scrollbar on a narrow one). Actions stays fixed; +20 covers the scrollbar/border.
         TableColumnUtil.bindProportionalWidths(table, actionsCol.getPrefWidth() + 20,
                 dateCol, amountCol, categoryCol, merchantCol, paymentCol, notesCol);
+    }
+
+    /**
+     * Pushes every expense to the shared "SpendLocker Sync" Google Sheet, overwriting its
+     * Expenses tab. The same sheet is what the Android companion app reads/writes, so this is
+     * the cross-device sync bridge — not a merge, a full overwrite of that tab from this device.
+     */
+    private void onSyncToDrive(Button trigger) {
+        if (!driveService.isSignedIn()) {
+            AlertUtil.error("Sync failed", "Sign in with Google first (see the Google Drive section in Settings).");
+            return;
+        }
+        List<Expense> snapshot = expenseDao.findAll();
+        trigger.setDisable(true);
+        SessionGuard.suspendAutoLock();
+        new Thread(() -> {
+            try {
+                sheetsService.syncExpenses(snapshot);
+                javafx.application.Platform.runLater(() -> {
+                    SessionGuard.resumeAutoLock();
+                    trigger.setDisable(false);
+                    AlertUtil.info("Synced", snapshot.size() + " expenses synced to Google Sheets.");
+                });
+            } catch (Exception ex) {
+                javafx.application.Platform.runLater(() -> {
+                    SessionGuard.resumeAutoLock();
+                    trigger.setDisable(false);
+                    AlertUtil.error("Sync failed", ex.getMessage());
+                });
+            }
+        }, "sheets-sync-expenses").start();
     }
 
     private void onAdd() {
