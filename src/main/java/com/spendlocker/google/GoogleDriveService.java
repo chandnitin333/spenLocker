@@ -169,9 +169,13 @@ public class GoogleDriveService {
     }
 
     public File uploadFile(java.io.File localFile, String mimeType) throws IOException {
+        return uploadFile(localFile, mimeType, localFile.getName());
+    }
+
+    public File uploadFile(java.io.File localFile, String mimeType, String driveFileName) throws IOException {
         requireSignedIn();
         File metadata = new File();
-        metadata.setName(localFile.getName());
+        metadata.setName(driveFileName);
         return drive.files()
                 .create(metadata, new com.google.api.client.http.FileContent(mimeType, localFile))
                 .setFields("id, name, webViewLink")

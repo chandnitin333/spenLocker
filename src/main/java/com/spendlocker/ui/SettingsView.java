@@ -26,6 +26,7 @@ import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
 import org.kordamp.ikonli.feather.Feather;
+import org.kordamp.ikonli.fontawesome5.FontAwesomeBrands;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.io.File;
@@ -239,22 +240,68 @@ public class SettingsView extends VBox {
 
     private VBox buildBackupSection() {
         Label heading = sectionHeading("Backup & Restore", Feather.ARCHIVE);
-        Label description = new Label("Export a full backup (encrypted database + documents) to a .zip file, " +
-                "independent of Google Drive. Restoring replaces everything currently in the vault.");
+        Label description = new Label("Export a full backup (encrypted database + documents, so all your expenses " +
+                "and investments are included, not just files) to a .zip — either to a local file, or straight to " +
+                "your Google Drive. Restoring replaces everything currently in the vault.");
         description.setWrapText(true);
         description.getStyleClass().add("text-caption");
 
         Button exportButton = new Button("Export Backup", new FontIcon(Feather.DOWNLOAD));
         exportButton.setOnAction(e -> onExportBackup());
+        Button backupToDriveButton = new Button("Backup to Google Drive", new FontIcon(FontAwesomeBrands.GOOGLE_DRIVE));
+        backupToDriveButton.setOnAction(e -> onBackupToDrive(backupToDriveButton));
         Button restoreButton = new Button("Restore from Backup", new FontIcon(Feather.UPLOAD));
         restoreButton.getStyleClass().add("danger");
         restoreButton.setOnAction(e -> onRestoreBackup());
 
-        HBox actions = new HBox(10, exportButton, restoreButton);
-        VBox section = new VBox(10, heading, description, actions);
+        Label driveHint = new Label("To restore a backup from Drive: use \"Browse Drive\" on the Documents screen to " +
+                "download it locally, then Restore from Backup below.");
+        driveHint.getStyleClass().add("text-caption");
+        driveHint.setWrapText(true);
+
+        HBox actions = new HBox(10, exportButton, backupToDriveButton, restoreButton);
+        VBox section = new VBox(10, heading, description, actions, driveHint);
         section.getStyleClass().add("card");
         section.setPadding(new Insets(16));
         return section;
+    }
+
+    private void onBackupToDrive(Button trigger) {
+        if (!googleDriveService.isSignedIn()) {
+            AlertUtil.error("Backup failed", "Sign in with Google first (see the Google Drive section above).");
+            return;
+        }
+        java.io.File tempZip;
+        try {
+            tempZip = java.io.File.createTempFile("spendlocker-backup-", ".zip");
+            backupService.exportBackup(tempZip);
+        } catch (IOException ex) {
+            AlertUtil.error("Backup failed", ex.getMessage());
+            return;
+        }
+
+        String driveFileName = "spendlocker-backup-" +
+                java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd-HHmmss")) + ".zip";
+        trigger.setDisable(true);
+        SessionGuard.suspendAutoLock();
+        new Thread(() -> {
+            try {
+                googleDriveService.uploadFile(tempZip, "application/zip", driveFileName);
+                javafx.application.Platform.runLater(() -> {
+                    SessionGuard.resumeAutoLock();
+                    trigger.setDisable(false);
+                    AlertUtil.info("Backup uploaded", "Uploaded to Google Drive as " + driveFileName);
+                });
+            } catch (Exception ex) {
+                javafx.application.Platform.runLater(() -> {
+                    SessionGuard.resumeAutoLock();
+                    trigger.setDisable(false);
+                    AlertUtil.error("Backup failed", ex.getMessage());
+                });
+            } finally {
+                tempZip.delete();
+            }
+        }, "drive-backup").start();
     }
 
     private void onExportBackup() {
