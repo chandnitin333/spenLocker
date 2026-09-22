@@ -85,6 +85,25 @@ public class SchemaInitializer {
         )
         """,
         """
+        CREATE TABLE IF NOT EXISTS fixed_deposits (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            depositor TEXT NOT NULL,
+            bank TEXT NOT NULL,
+            fd_number TEXT,
+            principal REAL NOT NULL,
+            rate_percent REAL NOT NULL DEFAULT 0,
+            tenure_value INTEGER NOT NULL,
+            tenure_unit TEXT NOT NULL CHECK(tenure_unit IN ('Days', 'Months', 'Years')),
+            compounding TEXT NOT NULL CHECK(compounding IN ('Quarterly', 'Half-Yearly', 'Annually', 'Simple')),
+            payout TEXT NOT NULL CHECK(payout IN ('Cumulative', 'Paid out periodically')),
+            start_date TEXT NOT NULL,
+            maturity_date TEXT NOT NULL,
+            nominee TEXT,
+            notes TEXT,
+            deleted_at TEXT
+        )
+        """,
+        """
         CREATE TABLE IF NOT EXISTS recurring_expenses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             category TEXT NOT NULL,
@@ -99,7 +118,9 @@ public class SchemaInitializer {
         """,
         "CREATE INDEX IF NOT EXISTS idx_doc_name ON documents(file_name)",
         "CREATE INDEX IF NOT EXISTS idx_doc_tags ON documents(tags)",
-        "CREATE INDEX IF NOT EXISTS idx_expense_category_date ON expenses(category, transaction_date)"
+        "CREATE INDEX IF NOT EXISTS idx_expense_category_date ON expenses(category, transaction_date)",
+        "CREATE INDEX IF NOT EXISTS idx_fd_maturity ON fixed_deposits(maturity_date)",
+        "CREATE INDEX IF NOT EXISTS idx_fd_bank ON fixed_deposits(bank)"
     };
 
     public static void initialize(Connection connection) throws SQLException {
