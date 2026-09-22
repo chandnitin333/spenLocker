@@ -51,8 +51,13 @@ public class GoogleDriveService {
 
     private static final Path CLIENT_SECRET_PATH =
             Path.of(DatabaseManager.vaultDirectory(), "google-client-secret.json");
+    // Bump this directory name whenever SCOPES gains a new permission. A cached token from
+    // before the change doesn't cover the new scope, but AuthorizationCodeInstalledApp reuses
+    // any cached token found here without re-checking scope — so it silently fails downstream
+    // (e.g. IMAP "authentication failed") instead of prompting for the extra consent. Pointing
+    // already-signed-in users at a fresh, empty directory forces exactly one new consent screen.
     private static final Path TOKENS_DIRECTORY_PATH =
-            Path.of(DatabaseManager.vaultDirectory(), "google-tokens");
+            Path.of(DatabaseManager.vaultDirectory(), "google-tokens-v2");
 
     private Drive drive;
     private com.google.api.client.auth.oauth2.Credential credential;
