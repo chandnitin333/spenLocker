@@ -37,22 +37,31 @@ public class ShellView extends BorderPane {
     private final ExpensesView expensesView = new ExpensesView();
     private final InvestmentsView investmentsView = new InvestmentsView();
     private final DepositsView depositsView = new DepositsView();
+    private final BanksView banksView = new BanksView(bank -> {
+        this.depositsView.refresh();
+        this.depositsView.filterByBank(bank);
+        this.setCenter(this.depositsView);
+        this.depositsBtn.setSelected(true);
+        this.currentAddAction = this.depositsView::triggerAddAction;
+    });
     private final DocumentsView documentsView = new DocumentsView();
     private final TrashView trashView = new TrashView();
     private final SettingsView settingsView = new SettingsView();
     private final ScrollPane settingsScroll = scrollable(settingsView);
     private final ScrollPane trashScroll = scrollable(trashView);
+    private final ScrollPane dashboardScroll = scrollable(dashboardView);
 
     private ToggleButton expensesBtn;
     private ToggleButton investmentsBtn;
     private ToggleButton depositsBtn;
+    private ToggleButton banksBtn;
     private ToggleButton documentsBtn;
     private TextField searchField;
     private Runnable currentAddAction;
 
     public ShellView() {
         setLeft(buildSidebar());
-        setCenter(dashboardView);
+        setCenter(dashboardScroll);
         getStyleClass().add("shell");
     }
 
@@ -99,14 +108,16 @@ public class ShellView extends BorderPane {
         ToggleGroup group = new ToggleGroup();
         ToggleButton dashboardBtn = navButton("Dashboard", Feather.HOME, group, true);
         depositsBtn = navButton("Deposits", Feather.CREDIT_CARD, group, false);
+        banksBtn = navButton("Banks", Feather.PIE_CHART, group, false);
         expensesBtn = navButton("Expenses", Feather.CREDIT_CARD, group, false);
         investmentsBtn = navButton("Investments", Feather.TRENDING_UP, group, false);
         documentsBtn = navButton("Documents", Feather.FOLDER, group, false);
         ToggleButton trashBtn = navButton("Trash", Feather.TRASH_2, group, false);
         ToggleButton settingsBtn = navButton("Settings", Feather.SETTINGS, group, false);
 
-        dashboardBtn.setOnAction(e -> { dashboardView.refresh(); setCenter(dashboardView); currentAddAction = null; });
+        dashboardBtn.setOnAction(e -> { dashboardView.refresh(); setCenter(dashboardScroll); currentAddAction = null; });
         depositsBtn.setOnAction(e -> { depositsView.refresh(); setCenter(depositsView); currentAddAction = depositsView::triggerAddAction; });
+        banksBtn.setOnAction(e -> { banksView.refresh(); setCenter(banksView); currentAddAction = null; });
         expensesBtn.setOnAction(e -> { expensesView.refresh(); setCenter(expensesView); currentAddAction = expensesView::triggerAddAction; });
         investmentsBtn.setOnAction(e -> { investmentsView.refresh(); setCenter(investmentsView); currentAddAction = investmentsView::triggerAddAction; });
         documentsBtn.setOnAction(e -> { documentsView.refresh(); setCenter(documentsView); currentAddAction = null; });
@@ -116,7 +127,7 @@ public class ShellView extends BorderPane {
         Region spacer = new Region();
         VBox.setVgrow(spacer, Priority.ALWAYS);
 
-        sidebar.getChildren().addAll(brandRow, searchBox, dashboardBtn, depositsBtn, expensesBtn, investmentsBtn, documentsBtn, trashBtn, spacer, settingsBtn);
+        sidebar.getChildren().addAll(brandRow, searchBox, dashboardBtn, depositsBtn, banksBtn, expensesBtn, investmentsBtn, documentsBtn, trashBtn, spacer, settingsBtn);
         return sidebar;
     }
 

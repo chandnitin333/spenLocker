@@ -407,6 +407,11 @@
 
 /* The reference's segmented filter toggle (Active/Matured/All) — a bordered pill group with a
    flat divider between buttons instead of separate pill-shaped ToggleButtons. */
+.bank-track {
+    -fx-background-color: -color-border-subtle;
+    -fx-background-radius: 3;
+}
+
 .seg-group {
     -fx-background-color: -color-bg-subtle;
     -fx-border-color: -color-border-default;
