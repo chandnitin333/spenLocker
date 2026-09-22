@@ -279,6 +279,12 @@ public class InvestmentsView extends BorderPane {
         });
 
         table.getColumns().addAll(nameCol, tickerCol, typeCol, purchaseDateCol, principalCol, unitsCol, unitPriceCol, currentValueCol, roiCol, actionsCol);
+
+        // Let the flexible columns grow/shrink together to fill whatever width the window
+        // actually has, instead of sitting at fixed pixel sizes (dead space on a wide screen,
+        // needless scrollbar on a narrow one). Actions stays fixed; +20 covers the scrollbar/border.
+        TableColumnUtil.bindProportionalWidths(table, actionsCol.getPrefWidth() + 20,
+                nameCol, tickerCol, typeCol, purchaseDateCol, principalCol, unitsCol, unitPriceCol, currentValueCol, roiCol);
     }
 
     private void onAdd() {

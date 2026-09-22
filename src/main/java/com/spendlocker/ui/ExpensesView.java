@@ -235,6 +235,12 @@ public class ExpensesView extends BorderPane {
         });
 
         table.getColumns().addAll(dateCol, amountCol, categoryCol, merchantCol, paymentCol, notesCol, actionsCol);
+
+        // Let the flexible columns grow/shrink together to fill whatever width the window
+        // actually has, instead of sitting at fixed pixel sizes (dead space on a wide screen,
+        // needless scrollbar on a narrow one). Actions stays fixed; +20 covers the scrollbar/border.
+        TableColumnUtil.bindProportionalWidths(table, actionsCol.getPrefWidth() + 20,
+                dateCol, amountCol, categoryCol, merchantCol, paymentCol, notesCol);
     }
 
     private void onAdd() {

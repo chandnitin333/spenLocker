@@ -1,8 +1,11 @@
 package com.spendlocker.util;
 
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
+
+import java.util.Arrays;
 
 /**
  * Sizes table columns wide enough that their header text is never clipped — hardcoded pixel
@@ -27,5 +30,24 @@ public final class TableColumnUtil {
         double width = Math.max(headerWidth, minDataWidth);
         column.setPrefWidth(width);
         column.setMinWidth(headerWidth);
+    }
+
+    /**
+     * Makes the given columns grow/shrink together to fill whatever width the table actually
+     * has (proportional to each column's current preferred width) instead of sitting at fixed
+     * pixel sizes that leave dead space on a wide screen or force a scrollbar on a narrow one
+     * unnecessarily. {@code fixedWidthReserved} is the width already spoken for by columns NOT
+     * passed here (e.g. a fixed-width, non-resizable Actions column) plus a small buffer for the
+     * vertical scrollbar/borders. Each column's own minWidth (set by {@link #fitHeader}) still
+     * wins if the proportional share would shrink it below its header/data floor — that's what
+     * makes the horizontal scrollbar appear on a narrow window instead of clipping text.
+     */
+    public static void bindProportionalWidths(TableView<?> table, double fixedWidthReserved, TableColumn<?, ?>... columns) {
+        double totalWeight = Arrays.stream(columns).mapToDouble(TableColumn::getPrefWidth).sum();
+        for (TableColumn<?, ?> column : columns) {
+            double weight = column.getPrefWidth() / totalWeight;
+            column.prefWidthProperty().bind(
+                    table.widthProperty().subtract(fixedWidthReserved).multiply(weight));
+        }
     }
 }
