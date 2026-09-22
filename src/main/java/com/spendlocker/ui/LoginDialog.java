@@ -23,6 +23,7 @@ public class LoginDialog {
         boolean firstRun = !DatabaseManager.vaultExists();
 
         Dialog<LoginResult> dialog = new Dialog<>();
+        com.spendlocker.util.DialogUtil.styleWith(dialog.getDialogPane());
         dialog.setTitle("SpendLocker");
         dialog.setHeaderText(firstRun
                 ? "Create a master password for your new encrypted vault"
