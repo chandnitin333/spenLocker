@@ -19,6 +19,7 @@ import com.spendlocker.ui.dialog.ExpenseFormDialog;
 import com.spendlocker.ui.dialog.GoogleDriveBrowserDialog;
 import com.spendlocker.util.AlertUtil;
 import com.spendlocker.util.DialogUtil;
+import com.spendlocker.util.TableColumnUtil;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -199,40 +200,39 @@ public class DocumentsView extends BorderPane {
         });
 
         TableColumn<Document, String> typeCol = new TableColumn<>("Type");
-        typeCol.setPrefWidth(70);
+        TableColumnUtil.fitHeader(typeCol, 70);
         typeCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getFileType().toString()));
 
         TableColumn<Document, String> sizeCol = new TableColumn<>("Size");
-        sizeCol.setPrefWidth(80);
+        TableColumnUtil.fitHeader(sizeCol, 80);
         sizeCol.setCellValueFactory(c -> new SimpleStringProperty(humanSize(c.getValue().getFileSizeBytes())));
 
         TableColumn<Document, String> sourceCol = new TableColumn<>("Source");
-        sourceCol.setPrefWidth(100);
+        TableColumnUtil.fitHeader(sourceCol, 100);
         sourceCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getUploadSource().toString()));
 
         TableColumn<Document, String> driveCol = new TableColumn<>("Drive");
-        driveCol.setPrefWidth(80);
+        TableColumnUtil.fitHeader(driveCol, 80);
         driveCol.setCellValueFactory(c -> new SimpleStringProperty(
                 c.getValue().getDriveFileId() != null && !c.getValue().getDriveFileId().isBlank() ? "Synced" : "—"));
 
         TableColumn<Document, String> dateCol = new TableColumn<>("Uploaded");
-        dateCol.setPrefWidth(110);
+        TableColumnUtil.fitHeader(dateCol, 110);
         dateCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getUploadDate()));
 
         TableColumn<Document, String> categoryCol = new TableColumn<>("Category");
-        categoryCol.setPrefWidth(110);
+        TableColumnUtil.fitHeader(categoryCol, 110);
         categoryCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getCategory()));
 
         TableColumn<Document, String> tagsCol = new TableColumn<>("Tags");
-        tagsCol.setPrefWidth(120);
+        TableColumnUtil.fitHeader(tagsCol, 120);
         tagsCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getTags()));
 
         TableColumn<Document, Void> actionsCol = new TableColumn<>("Actions");
         actionsCol.setSortable(false);
+        TableColumnUtil.fitHeader(actionsCol, 112);
         actionsCol.setResizable(false);
-        actionsCol.setPrefWidth(112);
-        actionsCol.setMinWidth(112);
-        actionsCol.setMaxWidth(112);
+        actionsCol.setMaxWidth(actionsCol.getPrefWidth());
         actionsCol.setCellFactory(col -> new TableCell<>() {
             private final Button openBtn = new Button(null, new FontIcon(Feather.EXTERNAL_LINK));
             private final Button uploadBtn = new Button(null, new FontIcon(FontAwesomeBrands.GOOGLE_DRIVE));

@@ -11,6 +11,7 @@ import com.spendlocker.ui.dialog.ExpenseFormDialog;
 import com.spendlocker.util.AlertUtil;
 import com.spendlocker.util.DialogUtil;
 import com.spendlocker.util.FinancialYear;
+import com.spendlocker.util.TableColumnUtil;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -38,6 +39,7 @@ import java.util.Locale;
 
 public class ExpensesView extends BorderPane {
 
+    private static final String ALL_CATEGORIES = "All Categories";
     private static final String ALL_TIME = "All Time";
     private static final String THIS_WEEK = "This Week";
     private static final String THIS_MONTH = "This Month";
@@ -52,6 +54,7 @@ public class ExpensesView extends BorderPane {
     private final ObservableList<Expense> data = FXCollections.observableArrayList();
     private final FilteredList<Expense> filteredData = new FilteredList<>(data, e -> true);
     private final ComboBox<String> dateRangeFilter = new ComboBox<>();
+    private final ComboBox<String> categoryFilter = new ComboBox<>();
 
     public ExpensesView() {
         setPadding(new Insets(24));
@@ -95,7 +98,11 @@ public class ExpensesView extends BorderPane {
         dateRangeFilter.setValue(ALL_TIME);
         dateRangeFilter.setOnAction(e -> applyFilter());
 
-        HBox filterBar = new HBox(10, new Label("Period:", new FontIcon(Feather.FILTER)), dateRangeFilter);
+        categoryFilter.setValue(ALL_CATEGORIES);
+        categoryFilter.setOnAction(e -> applyFilter());
+
+        HBox filterBar = new HBox(10, new Label("Period:", new FontIcon(Feather.FILTER)), dateRangeFilter,
+                new Label("Category:"), categoryFilter);
         filterBar.setAlignment(Pos.CENTER_LEFT);
         filterBar.setPadding(new Insets(0, 0, 16, 0));
 
@@ -126,6 +133,10 @@ public class ExpensesView extends BorderPane {
 
     public void refresh() {
         data.setAll(expenseDao.findAll());
+        String previousCategory = categoryFilter.getValue();
+        categoryFilter.getItems().setAll(ALL_CATEGORIES);
+        categoryFilter.getItems().addAll(expenseDao.distinctCategories());
+        categoryFilter.setValue(categoryFilter.getItems().contains(previousCategory) ? previousCategory : ALL_CATEGORIES);
         applyFilter();
     }
 
@@ -134,9 +145,20 @@ public class ExpensesView extends BorderPane {
         onAdd();
     }
 
+    /** Drill-down from the Dashboard's Spending by Category chart — shows every matching expense. */
+    public void filterByCategory(String category) {
+        if (categoryFilter.getItems().contains(category)) {
+            categoryFilter.setValue(category);
+        }
+        dateRangeFilter.setValue(ALL_TIME);
+        applyFilter();
+    }
+
     private void applyFilter() {
         String range = dateRangeFilter.getValue();
-        filteredData.setPredicate(expense -> matchesDateRange(expense.getTransactionDate(), range));
+        String category = categoryFilter.getValue();
+        filteredData.setPredicate(expense -> matchesDateRange(expense.getTransactionDate(), range)
+                && (ALL_CATEGORIES.equals(category) || category == null || category.equals(expense.getCategory())));
     }
 
     private boolean matchesDateRange(String transactionDate, String range) {
@@ -165,36 +187,35 @@ public class ExpensesView extends BorderPane {
 
     private void buildColumns() {
         TableColumn<Expense, String> dateCol = new TableColumn<>("Date");
-        dateCol.setPrefWidth(100);
+        TableColumnUtil.fitHeader(dateCol, 100);
         dateCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getTransactionDate()));
 
         TableColumn<Expense, Number> amountCol = new TableColumn<>("Amount");
-        amountCol.setPrefWidth(100);
+        TableColumnUtil.fitHeader(amountCol, 100);
         amountCol.setCellValueFactory(c -> new SimpleObjectProperty<>(c.getValue().getAmount()));
 
         TableColumn<Expense, String> categoryCol = new TableColumn<>("Category");
-        categoryCol.setPrefWidth(140);
+        TableColumnUtil.fitHeader(categoryCol, 140);
         categoryCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getCategory()));
 
         TableColumn<Expense, String> merchantCol = new TableColumn<>("Merchant/Vendor");
-        merchantCol.setPrefWidth(180);
+        TableColumnUtil.fitHeader(merchantCol, 180);
         merchantCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getMerchantOrVendor()));
 
         TableColumn<Expense, String> paymentCol = new TableColumn<>("Payment Method");
-        paymentCol.setPrefWidth(140);
+        TableColumnUtil.fitHeader(paymentCol, 140);
         paymentCol.setCellValueFactory(c -> new SimpleStringProperty(
                 c.getValue().getPaymentMethod() != null ? c.getValue().getPaymentMethod().toString() : ""));
 
         TableColumn<Expense, String> notesCol = new TableColumn<>("Notes");
-        notesCol.setPrefWidth(220);
+        TableColumnUtil.fitHeader(notesCol, 220);
         notesCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getNotes()));
 
         TableColumn<Expense, Void> actionsCol = new TableColumn<>("Actions");
         actionsCol.setSortable(false);
+        TableColumnUtil.fitHeader(actionsCol, 90);
         actionsCol.setResizable(false);
-        actionsCol.setPrefWidth(90);
-        actionsCol.setMinWidth(90);
-        actionsCol.setMaxWidth(90);
+        actionsCol.setMaxWidth(actionsCol.getPrefWidth());
         actionsCol.setCellFactory(col -> new TableCell<>() {
             private final Button editBtn = new Button(null, new FontIcon(Feather.EDIT_2));
             private final Button deleteBtn = new Button(null, new FontIcon(Feather.TRASH_2));

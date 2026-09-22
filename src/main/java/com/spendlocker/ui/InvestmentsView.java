@@ -10,6 +10,7 @@ import com.spendlocker.ui.dialog.InvestmentFormDialog;
 import com.spendlocker.util.AlertUtil;
 import com.spendlocker.util.DialogUtil;
 import com.spendlocker.util.FinancialYear;
+import com.spendlocker.util.TableColumnUtil;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -135,6 +136,14 @@ public class InvestmentsView extends BorderPane {
         applyFilters();
     }
 
+    /** Drill-down from the Dashboard's Investment Allocation chart. */
+    public void filterByType(String type) {
+        if (typeFilter.getItems().contains(type)) {
+            typeFilter.setValue(type);
+        }
+        applyFilters();
+    }
+
     private void applyFilters() {
         String type = typeFilter.getValue();
         String range = dateRangeFilter.getValue();
@@ -197,39 +206,39 @@ public class InvestmentsView extends BorderPane {
 
     private void buildColumns() {
         TableColumn<Investment, String> nameCol = new TableColumn<>("Asset");
-        nameCol.setPrefWidth(180);
+        TableColumnUtil.fitHeader(nameCol, 180);
         nameCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getAssetName()));
 
         TableColumn<Investment, String> tickerCol = new TableColumn<>("Ticker");
-        tickerCol.setPrefWidth(80);
+        TableColumnUtil.fitHeader(tickerCol, 80);
         tickerCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getAssetTicker()));
 
         TableColumn<Investment, String> typeCol = new TableColumn<>("Type");
-        typeCol.setPrefWidth(120);
+        TableColumnUtil.fitHeader(typeCol, 120);
         typeCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getInvestmentType()));
 
         TableColumn<Investment, String> purchaseDateCol = new TableColumn<>("Purchase Date");
-        purchaseDateCol.setPrefWidth(110);
+        TableColumnUtil.fitHeader(purchaseDateCol, 110);
         purchaseDateCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getPurchaseDate()));
 
         TableColumn<Investment, Number> principalCol = new TableColumn<>("Principal");
-        principalCol.setPrefWidth(100);
+        TableColumnUtil.fitHeader(principalCol, 100);
         principalCol.setCellValueFactory(c -> new SimpleObjectProperty<>(c.getValue().getPrincipalAmount()));
 
         TableColumn<Investment, Number> unitsCol = new TableColumn<>("Units");
-        unitsCol.setPrefWidth(90);
+        TableColumnUtil.fitHeader(unitsCol, 90);
         unitsCol.setCellValueFactory(c -> new SimpleObjectProperty<>(c.getValue().getTotalUnits()));
 
         TableColumn<Investment, Number> unitPriceCol = new TableColumn<>("Unit Price");
-        unitPriceCol.setPrefWidth(100);
+        TableColumnUtil.fitHeader(unitPriceCol, 100);
         unitPriceCol.setCellValueFactory(c -> new SimpleObjectProperty<>(c.getValue().getCurrentUnitPrice()));
 
         TableColumn<Investment, Number> currentValueCol = new TableColumn<>("Current Value");
-        currentValueCol.setPrefWidth(110);
+        TableColumnUtil.fitHeader(currentValueCol, 110);
         currentValueCol.setCellValueFactory(c -> new SimpleObjectProperty<>(c.getValue().getCurrentTotalValue()));
 
         TableColumn<Investment, Number> roiCol = new TableColumn<>("ROI %");
-        roiCol.setPrefWidth(90);
+        TableColumnUtil.fitHeader(roiCol, 90);
         roiCol.setCellValueFactory(c -> new SimpleObjectProperty<>(c.getValue().getRoiPercent()));
         roiCol.setCellFactory(col -> new TableCell<>() {
             @Override
@@ -248,10 +257,9 @@ public class InvestmentsView extends BorderPane {
 
         TableColumn<Investment, Void> actionsCol = new TableColumn<>("Actions");
         actionsCol.setSortable(false);
+        TableColumnUtil.fitHeader(actionsCol, 90);
         actionsCol.setResizable(false);
-        actionsCol.setPrefWidth(90);
-        actionsCol.setMinWidth(90);
-        actionsCol.setMaxWidth(90);
+        actionsCol.setMaxWidth(actionsCol.getPrefWidth());
         actionsCol.setCellFactory(col -> new TableCell<>() {
             private final Button editBtn = new Button(null, new FontIcon(Feather.EDIT_2));
             private final Button deleteBtn = new Button(null, new FontIcon(Feather.TRASH_2));

@@ -36,6 +36,7 @@ import java.time.format.TextStyle;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Consumer;
 
 public class DashboardView extends VBox {
 
@@ -47,10 +48,21 @@ public class DashboardView extends VBox {
     private final InvestmentDao investmentDao = new InvestmentDao();
     private final DocumentDao documentDao = new DocumentDao();
     private final BudgetDao budgetDao = new BudgetDao();
+    private final Consumer<String> onCategoryDrilldown;
+    private final Consumer<String> onInvestmentTypeDrilldown;
 
     private String selectedFinancialYear = FinancialYear.labelFor(LocalDate.now());
 
-    public DashboardView() {
+    /**
+     * @param onCategoryDrilldown       called with a category name when a Spending by Category
+     *                                  slice is clicked, to jump to Expenses filtered to it.
+     * @param onInvestmentTypeDrilldown called with an investment type when an Investment
+     *                                  Allocation slice is clicked, to jump to Investments
+     *                                  filtered to it.
+     */
+    public DashboardView(Consumer<String> onCategoryDrilldown, Consumer<String> onInvestmentTypeDrilldown) {
+        this.onCategoryDrilldown = onCategoryDrilldown;
+        this.onInvestmentTypeDrilldown = onInvestmentTypeDrilldown;
         setSpacing(20);
         setPadding(new Insets(24));
         refresh();
@@ -180,7 +192,7 @@ public class DashboardView extends VBox {
             colorByLabel.put(label, label.equals("Other") ? palette.otherColor() : palette.slot(slot++));
         }
 
-        VBox chartArea = buildDonut(chartData, colorByLabel, "Total Spent");
+        VBox chartArea = buildDonut(chartData, colorByLabel, "Total Spent", onCategoryDrilldown);
         return chartCard("Spending by Category (" + selectedFinancialYear + ")", chartArea);
     }
 
@@ -196,7 +208,7 @@ public class DashboardView extends VBox {
             colorByLabel.put(label, palette.slot(i++));
         }
 
-        VBox chartArea = buildDonut(byType, colorByLabel, "Total Value");
+        VBox chartArea = buildDonut(byType, colorByLabel, "Total Value", onInvestmentTypeDrilldown);
         return chartCard("Investment Allocation", chartArea);
     }
 
@@ -205,8 +217,10 @@ public class DashboardView extends VBox {
      * legend (so it matches whatever fixed/ranked colors the caller assigned), and per-slice
      * hover tooltips showing value + percentage.
      */
-    private VBox buildDonut(LinkedHashMap<String, Double> data, Map<String, String> colorByLabel, String centerCaption) {
+    private VBox buildDonut(LinkedHashMap<String, Double> data, Map<String, String> colorByLabel,
+                             String centerCaption, Consumer<String> onSliceClick) {
         double total = data.values().stream().mapToDouble(Double::doubleValue).sum();
+        boolean empty = data.isEmpty();
 
         PieChart chart = new PieChart();
         chart.setLegendVisible(false);
@@ -215,7 +229,7 @@ public class DashboardView extends VBox {
         chart.setPrefSize(220, 220);
         chart.setStartAngle(90);
 
-        if (data.isEmpty()) {
+        if (empty) {
             chart.getData().add(new PieChart.Data("No data yet", 1));
         } else {
             data.forEach((label, value) -> chart.getData().add(new PieChart.Data(label, value)));
@@ -224,11 +238,19 @@ public class DashboardView extends VBox {
         for (PieChart.Data slice : chart.getData()) {
             String color = colorByLabel.get(slice.getName());
             double pct = total > 0 ? (slice.getPieValue() / total) * 100 : 0;
+            // "Other" bundles several categories together, so clicking it can't map to one
+            // filter value — only individual slices drill down.
+            boolean clickable = !empty && onSliceClick != null && !"Other".equals(slice.getName());
             slice.nodeProperty().addListener((obs, oldNode, newNode) -> {
                 if (newNode == null) return;
                 if (color != null) newNode.setStyle("-fx-pie-color: " + color + ";");
-                Tooltip.install(newNode, new Tooltip(String.format(
-                        "%s: %s (%.1f%%)", slice.getName(), currency(slice.getPieValue()), pct)));
+                String tooltipText = String.format("%s: %s (%.1f%%)", slice.getName(), currency(slice.getPieValue()), pct)
+                        + (clickable ? "\nClick to view" : "");
+                Tooltip.install(newNode, new Tooltip(tooltipText));
+                if (clickable) {
+                    newNode.setCursor(javafx.scene.Cursor.HAND);
+                    newNode.setOnMouseClicked(evt -> onSliceClick.accept(slice.getName()));
+                }
             });
         }
 
@@ -243,12 +265,15 @@ public class DashboardView extends VBox {
         StackPane donutStack = new StackPane(chart, hole, centerText);
 
         FlowPane legend = new FlowPane(12, 6);
-        colorByLabel.forEach((label, color) -> legend.getChildren().add(legendEntry(label, color)));
+        colorByLabel.forEach((label, color) -> {
+            boolean clickable = !empty && onSliceClick != null && !"Other".equals(label);
+            legend.getChildren().add(legendEntry(label, color, clickable ? onSliceClick : null));
+        });
 
         return new VBox(12, donutStack, legend);
     }
 
-    private HBox legendEntry(String label, String color) {
+    private HBox legendEntry(String label, String color, Consumer<String> onClick) {
         Region swatch = new Region();
         swatch.getStyleClass().add("legend-swatch");
         swatch.setStyle("-fx-background-color: " + color + ";");
@@ -256,6 +281,11 @@ public class DashboardView extends VBox {
         text.getStyleClass().add("text-caption");
         HBox entry = new HBox(6, swatch, text);
         entry.setAlignment(Pos.CENTER_LEFT);
+        if (onClick != null) {
+            entry.setCursor(javafx.scene.Cursor.HAND);
+            entry.setOnMouseClicked(e -> onClick.accept(label));
+            Tooltip.install(entry, new Tooltip("Click to view"));
+        }
         return entry;
     }
 
