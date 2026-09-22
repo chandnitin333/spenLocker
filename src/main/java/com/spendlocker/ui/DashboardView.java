@@ -94,19 +94,17 @@ public class DashboardView extends VBox {
 
         FlowPane chartsRow = new FlowPane(16, 16, buildCategoryChart(), buildAllocationChart());
 
-        // KPIs, then the runway trend, then what needs attention, then what's due next, then
-        // breakdowns — the same hero -> runway -> next-out -> detail flow as the reference design.
-        getChildren().addAll(titleRow, buildStatCards(investmentDao.overallRoiPercent()));
-        VBox budgetAlerts = buildBudgetAlerts();
-        if (budgetAlerts != null) {
-            getChildren().add(budgetAlerts);
-        }
-        getChildren().add(buildTrendChart());
+        // hero (KPIs) -> concentration -> runway -> next-out -> what-needs-attention: the exact
+        // flow of the reference design's own page, confirmed by rendering wealth-book.html itself.
+        getChildren().addAll(titleRow, buildStatCards(investmentDao.overallRoiPercent()), chartsRow, buildTrendChart());
         VBox nextUp = buildNextUp();
         if (nextUp != null) {
             getChildren().add(nextUp);
         }
-        getChildren().add(chartsRow);
+        VBox budgetAlerts = buildBudgetAlerts();
+        if (budgetAlerts != null) {
+            getChildren().add(budgetAlerts);
+        }
     }
 
     /** Flags any budgeted category at >=90% of its monthly limit. Returns null when nothing to flag. */

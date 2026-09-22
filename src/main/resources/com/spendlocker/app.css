@@ -1,11 +1,13 @@
 /*
- * Ledger theme — repaints AtlantaFX's own semantic color tokens to match the reference design
- * (wealth-book.html): a flat "paper" background, deep teal accent, brass for secondary accents,
- * and a serif headline face. Overriding the tokens AtlantaFX's own controls already consume
- * (buttons, tables, text fields, dialogs...) means every screen and form field re-themes
- * consistently from this one place, instead of hand-restyling each view individually.
+ * Ledger theme — repaints AtlantaFX's own semantic color tokens and default typeface to match
+ * the reference design (wealth-book.html) exactly: a flat "paper" background, deep teal accent,
+ * brass for secondary accents, and Archivo as the body/heading face everywhere (the reference
+ * only uses its serif, Newsreader, for the brand wordmark — see .brand-title). Overriding the
+ * tokens AtlantaFX's own controls already consume (buttons, tables, text fields, dialogs...)
+ * means every screen and form field re-themes consistently from this one place.
  */
 .root {
+    -fx-font-family: "Archivo";
     -color-fg-default: #0D2B2A;
     -color-fg-muted: #556661;
     -color-fg-subtle: #556661;
@@ -41,7 +43,7 @@
 }
 
 .title-1, .title-2, .title-3 {
-    -fx-font-family: "Georgia", "Times New Roman", serif;
+    -fx-font-family: "Archivo SemiBold";
 }
 
 .shell {
@@ -60,8 +62,9 @@
 }
 
 .brand-title {
-    -fx-font-size: 18px;
-    -fx-font-weight: bold;
+    -fx-font-family: "Newsreader";
+    -fx-font-size: 20px;
+    -fx-letter-spacing: -0.01em;
 }
 
 .nav-button {
@@ -117,7 +120,7 @@
 
 .hcell .hcell-value {
     -fx-font-size: 20px;
-    -fx-font-weight: 600;
+    -fx-font-family: "Archivo SemiBold";
 }
 
 .hcell.urgent .hcell-value {
@@ -177,20 +180,6 @@
     -fx-background-color: -color-accent-subtle;
 }
 
-.stat-icon-circle {
-    -fx-background-color: -color-accent-muted;
-    -fx-background-radius: 999;
-    -fx-min-width: 44;
-    -fx-min-height: 44;
-    -fx-max-width: 44;
-    -fx-max-height: 44;
-}
-
-.stat-icon {
-    -fx-icon-color: -color-accent-emphasis;
-    -fx-icon-size: 20;
-}
-
 .badge-positive {
     -fx-text-fill: -color-success-fg;
     -fx-font-size: 11px;
@@ -211,7 +200,6 @@
 
 .title-1 {
     -fx-font-size: 22px;
-    -fx-font-weight: bold;
 }
 
 .title-1 .ikonli-font-icon {
@@ -219,14 +207,9 @@
     -fx-icon-color: -color-accent-emphasis;
 }
 
-.title-2 {
-    -fx-font-size: 20px;
-    -fx-font-weight: bold;
-}
-
 .title-3 {
-    -fx-font-size: 16px;
-    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+    -fx-letter-spacing: 0.005em;
 }
 
 .title-3 .ikonli-font-icon {

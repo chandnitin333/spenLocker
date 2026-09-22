@@ -4,6 +4,7 @@ import com.spendlocker.config.AppConfig;
 import com.spendlocker.db.DatabaseManager;
 import com.spendlocker.db.VaultLockedException;
 import com.spendlocker.service.RecurringExpenseService;
+import com.spendlocker.ui.FontLoader;
 import com.spendlocker.ui.LoginDialog;
 import com.spendlocker.ui.LoginResult;
 import com.spendlocker.ui.SessionGuard;
@@ -31,6 +32,7 @@ public class MainApp extends Application {
     @Override
     public void start(Stage primaryStage) {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> DatabaseManager.getInstance().close()));
+        FontLoader.loadAppFonts();
         ThemeManager.LIGHT.apply();
         promptForLogin(primaryStage);
     }
