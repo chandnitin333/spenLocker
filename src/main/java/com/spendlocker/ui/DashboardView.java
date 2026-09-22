@@ -1,19 +1,17 @@
 package com.spendlocker.ui;
 
 import com.spendlocker.dao.BudgetDao;
-import com.spendlocker.dao.DocumentDao;
 import com.spendlocker.dao.ExpenseDao;
+import com.spendlocker.dao.FixedDepositDao;
 import com.spendlocker.dao.InvestmentDao;
-import com.spendlocker.dao.RecurringExpenseDao;
-import com.spendlocker.model.RecurringExpense;
-import com.spendlocker.util.FinancialYear;
+import com.spendlocker.model.FixedDeposit;
+import com.spendlocker.util.FixedDepositCalculator;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.chart.BarChart;
 import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
-import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.FlowPane;
@@ -30,7 +28,6 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
-import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -39,30 +36,22 @@ import java.util.function.Consumer;
 
 public class DashboardView extends VBox {
 
-    private static final int MAX_CATEGORY_SLICES = 7;
-    private static final int TREND_MONTHS = 6;
-    private static final int PRIOR_FINANCIAL_YEARS_SHOWN = 5;
-
     private final ExpenseDao expenseDao = new ExpenseDao();
     private final InvestmentDao investmentDao = new InvestmentDao();
-    private final DocumentDao documentDao = new DocumentDao();
     private final BudgetDao budgetDao = new BudgetDao();
-    private final RecurringExpenseDao recurringExpenseDao = new RecurringExpenseDao();
-    private final Consumer<String> onCategoryDrilldown;
+    private final FixedDepositDao fixedDepositDao = new FixedDepositDao();
     private final Consumer<String> onInvestmentTypeDrilldown;
-
-    private String selectedFinancialYear = FinancialYear.labelFor(LocalDate.now());
+    private final Consumer<String> onBankDrilldown;
 
     /**
-     * @param onCategoryDrilldown       called with a category name when a Spending by Category
-     *                                  slice is clicked, to jump to Expenses filtered to it.
-     * @param onInvestmentTypeDrilldown called with an investment type when an Investment
-     *                                  Allocation slice is clicked, to jump to Investments
-     *                                  filtered to it.
+     * @param onInvestmentTypeDrilldown called with an investment type when a by-kind card is
+     *                                  clicked, to jump to Investments filtered to it.
+     * @param onBankDrilldown           called with a bank name when a bank-concentration segment
+     *                                  is clicked, to jump to Deposits filtered to it.
      */
-    public DashboardView(Consumer<String> onCategoryDrilldown, Consumer<String> onInvestmentTypeDrilldown) {
-        this.onCategoryDrilldown = onCategoryDrilldown;
+    public DashboardView(Consumer<String> onInvestmentTypeDrilldown, Consumer<String> onBankDrilldown) {
         this.onInvestmentTypeDrilldown = onInvestmentTypeDrilldown;
+        this.onBankDrilldown = onBankDrilldown;
         setSpacing(20);
         setPadding(new Insets(24));
         refresh();
@@ -74,34 +63,28 @@ public class DashboardView extends VBox {
         Label title = new Label("Dashboard", new FontIcon(Feather.HOME));
         title.getStyleClass().add("title-1");
 
-        Label currentFyLabel = new Label("Current: " + FinancialYear.labelFor(LocalDate.now()));
-        currentFyLabel.getStyleClass().add("text-caption");
-
-        ComboBox<String> fyFilter = new ComboBox<>(javafx.collections.FXCollections.observableArrayList(
-                FinancialYear.recentLabels(PRIOR_FINANCIAL_YEARS_SHOWN)));
-        fyFilter.setValue(selectedFinancialYear);
-        fyFilter.setOnAction(e -> {
-            selectedFinancialYear = fyFilter.getValue();
-            refresh();
-        });
+        Label asAtLabel = new Label("As at " + LocalDate.now().format(DateTimeFormatter.ofPattern("d MMM yyyy")));
+        asAtLabel.getStyleClass().add("text-caption");
 
         Region titleSpacer = new Region();
         HBox.setHgrow(titleSpacer, Priority.ALWAYS);
-        HBox titleRow = new HBox(10, title, titleSpacer, currentFyLabel,
-                new Label("View:", new FontIcon(Feather.CALENDAR)), fyFilter);
+        HBox titleRow = new HBox(10, title, titleSpacer, asAtLabel);
         titleRow.setAlignment(Pos.CENTER_LEFT);
         titleRow.getStyleClass().add("page-header");
         titleRow.setPadding(new Insets(0, 0, 12, 0));
 
-        FlowPane chartsRow = new FlowPane(16, 16, buildCategoryChart(), buildAllocationChart());
+        List<FixedDeposit> allDeposits = fixedDepositDao.findAll();
 
-        // hero (KPIs) -> concentration -> runway -> next-out -> what-needs-attention: the exact
-        // flow of the reference design's own page, confirmed by rendering wealth-book.html itself.
-        getChildren().addAll(titleRow, buildStatCards(investmentDao.overallRoiPercent()), chartsRow, buildTrendChart());
-        VBox nextUp = buildNextUp();
+        // hero (KPIs) -> bank concentration -> maturity runway -> next-out -> everything you
+        // track, by kind -> what-needs-attention: the reference design's own page flow,
+        // confirmed by rendering wealth-book.html itself.
+        getChildren().addAll(titleRow, buildStatCards(allDeposits), buildBankConcentration(allDeposits),
+                buildMaturityRunway(allDeposits));
+        VBox nextUp = buildNextUp(allDeposits);
         if (nextUp != null) {
             getChildren().add(nextUp);
         }
+        getChildren().add(buildByKindGrid(allDeposits));
         VBox budgetAlerts = buildBudgetAlerts();
         if (budgetAlerts != null) {
             getChildren().add(budgetAlerts);
@@ -140,28 +123,28 @@ public class DashboardView extends VBox {
     }
 
     /**
-     * Upcoming recurring expenses with countdown rings — SpendLocker's equivalent of the
-     * reference design's maturity reminders, using next-due-date in place of maturity date.
-     * Ring color and the "due soon" cutoffs (30 / 90 days) match the reference exactly.
+     * The next 6 upcoming maturities with countdown rings — matches the reference's "Next out"
+     * exactly. Ring color and the "due soon" cutoffs (30 / 90 days) match the reference too.
      */
-    private VBox buildNextUp() {
-        List<RecurringExpense> upcoming = recurringExpenseDao.findAll().stream()
-                .filter(RecurringExpense::isActive)
+    private VBox buildNextUp(List<FixedDeposit> allDeposits) {
+        List<FixedDeposit> upcoming = allDeposits.stream()
+                .filter(fd -> FixedDepositCalculator.isActive(fd.getMaturityDate()))
+                .sorted(java.util.Comparator.comparing(FixedDeposit::getMaturityDate))
                 .limit(6)
                 .toList();
         if (upcoming.isEmpty()) return null;
 
-        LocalDate today = LocalDate.now();
         double dueSoonTotal = 0;
         int dueSoonCount = 0;
 
         VBox rows = new VBox();
         for (int i = 0; i < upcoming.size(); i++) {
-            RecurringExpense r = upcoming.get(i);
-            LocalDate due = LocalDate.parse(r.getNextDueDate());
-            long daysLeft = ChronoUnit.DAYS.between(today, due);
+            FixedDeposit fd = upcoming.get(i);
+            LocalDate due = LocalDate.parse(fd.getMaturityDate());
+            long daysLeft = FixedDepositCalculator.daysLeft(fd.getMaturityDate());
+            double maturityAmount = FixedDepositCalculator.maturityAmount(fd);
             if (daysLeft <= 90) {
-                dueSoonTotal += r.getAmount();
+                dueSoonTotal += maturityAmount;
                 dueSoonCount++;
             }
             Color color = daysLeft <= 30 ? Color.web("#A32D2D")
@@ -169,21 +152,19 @@ public class DashboardView extends VBox {
                     : Color.web("#2C7A6E");
             CountdownRing ring = new CountdownRing((int) daysLeft, color);
 
-            String primaryName = r.getMerchantOrVendor() != null && !r.getMerchantOrVendor().isBlank()
-                    ? r.getMerchantOrVendor() : r.getCategory();
-            Label who = new Label(primaryName);
+            Label who = new Label(fd.getDepositor());
             who.setStyle("-fx-font-weight: 600;");
-            Label category = new Label(r.getCategory());
-            category.getStyleClass().add("text-caption");
-            HBox whoBox = new HBox(6, who, category);
+            Label bank = new Label(fd.getBank());
+            bank.getStyleClass().add("text-caption");
+            HBox whoBox = new HBox(6, who, bank);
             whoBox.setAlignment(Pos.CENTER_LEFT);
 
             Region spacer = new Region();
             HBox.setHgrow(spacer, Priority.ALWAYS);
 
-            Label dateLabel = new Label(due.format(DateTimeFormatter.ofPattern("d MMM")));
+            Label dateLabel = new Label(due.format(DateTimeFormatter.ofPattern("d MMM yy")));
             dateLabel.getStyleClass().add("text-caption");
-            Label amountLabel = new Label(currency(r.getAmount()));
+            Label amountLabel = new Label(currency(maturityAmount));
 
             HBox row = new HBox(12, ring, whoBox, spacer, dateLabel, amountLabel);
             row.setAlignment(Pos.CENTER_LEFT);
@@ -196,11 +177,11 @@ public class DashboardView extends VBox {
         }
 
         Label summary = new Label(dueSoonCount > 0
-                ? String.format("%s across %d due in the next 90 days", currency(dueSoonTotal), dueSoonCount)
+                ? String.format("%s across %d deposits in the next 90 days", currency(dueSoonTotal), dueSoonCount)
                 : "Nothing due in the next 90 days");
         summary.getStyleClass().add("text-caption");
 
-        Label heading = new Label("Next Up", new FontIcon(Feather.CLOCK));
+        Label heading = new Label("Next out", new FontIcon(Feather.CLOCK));
         heading.getStyleClass().add("title-3");
         VBox section = new VBox(6, heading, summary, rows);
         // The reference's own "Next out" is the one hero block with an explicit divider
@@ -220,27 +201,54 @@ public class DashboardView extends VBox {
         return section;
     }
 
-    /** Trend over time -> area chart (gradient fill under the line), single series in the accent hue. */
-    private VBox buildTrendChart() {
-        LinkedHashMap<String, Double> monthly = expenseDao.monthlyTotals(TREND_MONTHS);
-        double total = monthly.values().stream().mapToDouble(Double::doubleValue).sum();
+    private static final int RUNWAY_MONTHS = 18;
+
+    /** 18 months of FD maturities as a bar+cumulative-line chart, urgency-colored per month by
+     *  its earliest deposit — the reference's "Maturity runway" exactly. */
+    private VBox buildMaturityRunway(List<FixedDeposit> allDeposits) {
+        List<FixedDeposit> active = allDeposits.stream()
+                .filter(fd -> FixedDepositCalculator.isActive(fd.getMaturityDate()))
+                .toList();
+
+        YearMonth base = YearMonth.now();
+        List<YearMonth> months = new java.util.ArrayList<>();
+        for (int i = 0; i < RUNWAY_MONTHS; i++) months.add(base.plusMonths(i));
+
+        double[] totals = new double[RUNWAY_MONTHS];
+        Long[] minDays = new Long[RUNWAY_MONTHS];
+        for (FixedDeposit fd : active) {
+            YearMonth maturityMonth = YearMonth.from(LocalDate.parse(fd.getMaturityDate()));
+            int idx = months.indexOf(maturityMonth);
+            if (idx < 0) continue; // outside the 18-month window
+            totals[idx] += FixedDepositCalculator.maturityAmount(fd);
+            Long daysLeft = FixedDepositCalculator.daysLeft(fd.getMaturityDate());
+            if (minDays[idx] == null || daysLeft < minDays[idx]) minDays[idx] = daysLeft;
+        }
+
+        List<Double> values = new java.util.ArrayList<>();
+        List<String> labels = new java.util.ArrayList<>();
+        List<Color> colors = new java.util.ArrayList<>();
+        for (int i = 0; i < RUNWAY_MONTHS; i++) {
+            values.add(totals[i]);
+            labels.add(months.get(i).getMonth().getDisplayName(TextStyle.SHORT, Locale.getDefault()));
+            Long d = minDays[i];
+            colors.add(d == null ? Color.web("#2C7A6E")
+                    : d <= 30 ? Color.web("#A32D2D") : d <= 90 ? Color.web("#9A6A12") : Color.web("#2C7A6E"));
+        }
+
+        double sixMonthTotal = values.subList(0, Math.min(6, values.size())).stream().mapToDouble(Double::doubleValue).sum();
 
         RunwayChart chart = new RunwayChart();
-        chart.setPrefHeight(200);
-        chart.setMinHeight(200);
+        chart.setPrefHeight(220);
+        chart.setMinHeight(220);
         String symbol = NumberFormat.getCurrencyInstance(new Locale("en", "IN")).getCurrency().getSymbol();
-        chart.setData(
-                monthly.keySet().stream().map(this::formatMonth).toList(),
-                new java.util.ArrayList<>(monthly.values()),
-                symbol);
+        chart.setData(labels, values, symbol, colors);
 
-        // Title + a live readout on the same row (right-aligned) — matching the reference's
-        // "Maturity runway" header, which always pairs the chart title with a summary reading.
-        Label heading = new Label("Monthly Spending Trend");
+        Label heading = new Label("Maturity runway");
         heading.getStyleClass().add("title-3");
-        Label readout = new Label(total > 0
-                ? String.format("%s spent across the last %d months", currency(total), TREND_MONTHS)
-                : "Nothing spent in this window");
+        Label readout = new Label(sixMonthTotal > 0
+                ? String.format("%s back in the next six months", currency(sixMonthTotal))
+                : "Nothing matures in the next six months");
         readout.getStyleClass().add("text-caption");
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -252,28 +260,21 @@ public class DashboardView extends VBox {
         return section;
     }
 
-    /** Part-to-whole across an open-ended set of categories -> the reference's concentration bar,
-     *  top N + "Other" (single teal hue, ranked dark-to-light, no rainbow). */
-    private VBox buildCategoryChart() {
-        LinkedHashMap<String, Double> categoryTotals = expenseDao.categoryTotalsForRange(
-                FinancialYear.startOf(selectedFinancialYear).format(DateTimeFormatter.ISO_LOCAL_DATE),
-                FinancialYear.endOf(selectedFinancialYear).format(DateTimeFormatter.ISO_LOCAL_DATE));
-        LinkedHashMap<String, Double> chartData = topNWithOther(categoryTotals, MAX_CATEGORY_SLICES);
-
-        ConcentrationBar bar = new ConcentrationBar();
-        bar.setData(chartData, "categories", onCategoryDrilldown);
-        return chartCard("Spending by Category (" + selectedFinancialYear + ")", bar);
-    }
-
-    /** Fixed identity -> value, ranked largest-first for the concentration bar's shading. */
-    private VBox buildAllocationChart() {
-        LinkedHashMap<String, Double> byType = investmentDao.currentValueByType().entrySet().stream()
+    /** Bank concentration: the reference's single teal-ramp bar, ranked largest-first. */
+    private VBox buildBankConcentration(List<FixedDeposit> allDeposits) {
+        LinkedHashMap<String, Double> byBank = allDeposits.stream()
+                .filter(fd -> FixedDepositCalculator.isActive(fd.getMaturityDate()))
+                .collect(java.util.stream.Collectors.groupingBy(
+                        FixedDeposit::getBank,
+                        LinkedHashMap::new,
+                        java.util.stream.Collectors.summingDouble(FixedDeposit::getPrincipal)))
+                .entrySet().stream()
                 .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
                 .collect(LinkedHashMap::new, (map, e) -> map.put(e.getKey(), e.getValue()), LinkedHashMap::putAll);
 
         ConcentrationBar bar = new ConcentrationBar();
-        bar.setData(byType, "types", onInvestmentTypeDrilldown);
-        return chartCard("Investment Allocation", bar);
+        bar.setData(byBank, "banks", onBankDrilldown);
+        return chartCard("Bank concentration", bar);
     }
 
     private BarChart<Number, String> horizontalBarChart(LinkedHashMap<String, Double> data, Map<String, String> colorByLabel) {
@@ -307,63 +308,134 @@ public class DashboardView extends VBox {
         return chart;
     }
 
-    private LinkedHashMap<String, Double> topNWithOther(LinkedHashMap<String, Double> ranked, int maxSlices) {
-        LinkedHashMap<String, Double> result = new LinkedHashMap<>();
-        double otherTotal = 0;
-        int i = 0;
-        for (Map.Entry<String, Double> entry : ranked.entrySet()) {
-            if (i < maxSlices) {
-                result.put(entry.getKey(), entry.getValue());
-            } else {
-                otherTotal += entry.getValue();
-            }
-            i++;
+    /** The reference design's FD-based hero KPI strip, exactly: Principal locked up / Interest
+     *  still to come / Value at maturity / Other investments / Back within 30 days. */
+    private HBox buildStatCards(List<FixedDeposit> allDeposits) {
+        List<FixedDeposit> active = allDeposits.stream()
+                .filter(fd -> FixedDepositCalculator.isActive(fd.getMaturityDate()))
+                .toList();
+
+        double principal = active.stream().mapToDouble(FixedDeposit::getPrincipal).sum();
+        double interest = active.stream().mapToDouble(FixedDepositCalculator::interest).sum();
+        double maturityValue = active.stream().mapToDouble(FixedDepositCalculator::maturityAmount).sum();
+        double weightedRate = FixedDepositCalculator.weightedAverageRate(active);
+
+        double otherInvestments = investmentDao.sumCurrentValue();
+        int otherCount = investmentDao.findAll().size();
+
+        List<FixedDeposit> soon = active.stream()
+                .filter(fd -> {
+                    Long daysLeft = FixedDepositCalculator.daysLeft(fd.getMaturityDate());
+                    return daysLeft != null && daysLeft <= 30;
+                })
+                .toList();
+
+        VBox soonCell;
+        if (soon.isEmpty()) {
+            String nextDate = active.stream()
+                    .map(FixedDeposit::getMaturityDate)
+                    .min(java.util.Comparator.naturalOrder())
+                    .map(d -> LocalDate.parse(d).format(DateTimeFormatter.ofPattern("d MMM yy")))
+                    .orElse("—");
+            soonCell = KpiStrip.cell("Back within 30 days", "nothing due", "next is " + nextDate);
+        } else {
+            double soonMaturity = soon.stream().mapToDouble(FixedDepositCalculator::maturityAmount).sum();
+            double soonPrincipal = soon.stream().mapToDouble(FixedDeposit::getPrincipal).sum();
+            double soonInterest = soonMaturity - soonPrincipal;
+            soonCell = KpiStrip.cell("Back within 30 days", currency(soonMaturity),
+                    shortMoney(soonPrincipal) + " principal + " + shortMoney(soonInterest) + " interest", true);
         }
-        if (otherTotal > 0) {
-            result.put("Other", otherTotal);
-        }
-        return result;
+
+        return KpiStrip.strip(
+                KpiStrip.cell("Principal locked up", currency(principal), active.size() + " active deposits"),
+                KpiStrip.cell("Interest still to come", currency(interest), String.format("at %.2f%% average", weightedRate)),
+                KpiStrip.cell("Value at maturity", currency(maturityValue), "principal + interest"),
+                KpiStrip.cell("Other investments", currency(otherInvestments), otherCount + " holdings"),
+                soonCell);
     }
 
-    private String formatMonth(String yearMonth) {
-        YearMonth ym = YearMonth.parse(yearMonth);
-        return ym.getMonth().getDisplayName(TextStyle.SHORT, Locale.getDefault()) + " '" + (ym.getYear() % 100);
-    }
+    /** "Everything you track, by kind" — the reference Dashboard's own card grid: one card per
+     *  kind (FDs, each investment type, expenses), clickable where a drill-down target exists. */
+    private VBox buildByKindGrid(List<FixedDeposit> allDeposits) {
+        Label heading = new Label("Everything you track, by kind", new FontIcon(Feather.GRID));
+        heading.getStyleClass().add("title-3");
+        Label subheading = new Label("Open any card for the full list.");
+        subheading.getStyleClass().add("text-caption");
 
-    /** The reference design's "hstrip" KPI row: one hairline-bordered strip, hcells divided by
-     *  1px gaps rather than separate shadowed cards. */
-    private HBox buildStatCards(double roi) {
-        double fySpend = expenseDao.sumForRange(
-                FinancialYear.startOf(selectedFinancialYear).format(DateTimeFormatter.ISO_LOCAL_DATE),
-                FinancialYear.endOf(selectedFinancialYear).format(DateTimeFormatter.ISO_LOCAL_DATE));
-        String roiBadge = String.format("%s%.2f%% ROI", roi >= 0 ? "+" : "", roi);
-        HBox strip = new HBox(1,
-                hcell("This Month's Spending", currency(expenseDao.sumForCurrentMonth()), null),
-                hcell(selectedFinancialYear + " Spending", currency(fySpend), null),
-                hcell("Portfolio Value", currency(investmentDao.sumCurrentValue()), roiBadge),
-                hcell("Documents in Vault", String.valueOf(documentDao.count()), null));
-        strip.getStyleClass().add("hstrip");
-        strip.setFillHeight(true);
-        return strip;
-    }
+        FlowPane grid = new FlowPane(16, 16);
 
-    private VBox hcell(String label, String value, String note) {
-        Label labelText = new Label(label.toUpperCase(Locale.ROOT));
-        labelText.getStyleClass().add("hcell-label");
-        Label valueText = new Label(value);
-        valueText.getStyleClass().add("hcell-value");
+        long activeDeposits = allDeposits.stream().filter(fd -> FixedDepositCalculator.isActive(fd.getMaturityDate())).count();
+        double principal = allDeposits.stream()
+                .filter(fd -> FixedDepositCalculator.isActive(fd.getMaturityDate()))
+                .mapToDouble(FixedDeposit::getPrincipal).sum();
+        double interestToCome = allDeposits.stream()
+                .filter(fd -> FixedDepositCalculator.isActive(fd.getMaturityDate()))
+                .mapToDouble(FixedDepositCalculator::interest).sum();
+        grid.getChildren().add(kindCard("#135049", "Fixed deposit", activeDeposits + " held",
+                currency(principal), currency(interestToCome) + " interest to come", null));
 
-        VBox cell = new VBox(4, labelText, valueText);
-        if (note != null) {
-            Label noteLabel = new Label(note);
-            noteLabel.getStyleClass().addAll("tag", note.startsWith("-") ? "negative" : "positive");
-            cell.getChildren().add(noteLabel);
+        Map<String, List<com.spendlocker.model.Investment>> byType = investmentDao.findAll().stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                        com.spendlocker.model.Investment::getInvestmentType, LinkedHashMap::new, java.util.stream.Collectors.toList()));
+        for (Map.Entry<String, List<com.spendlocker.model.Investment>> entry : byType.entrySet()) {
+            List<com.spendlocker.model.Investment> list = entry.getValue();
+            double invested = list.stream().mapToDouble(com.spendlocker.model.Investment::getPrincipalAmount).sum();
+            double current = list.stream().mapToDouble(com.spendlocker.model.Investment::getCurrentTotalValue).sum();
+            double gain = current - invested;
+            double gainPct = invested > 0 ? (gain / invested) * 100 : 0;
+            String sub = String.format("%s %s (%s%.1f%%)", gain >= 0 ? "up" : "down",
+                    currency(Math.abs(gain)), gain >= 0 ? "+" : "-", Math.abs(gainPct));
+            String type = entry.getKey();
+            grid.getChildren().add(kindCard("#2C7A6E", type, list.size() + " held", currency(current), sub,
+                    () -> onInvestmentTypeDrilldown.accept(type)));
         }
-        cell.getStyleClass().add("hcell");
-        cell.setPadding(new Insets(14, 16, 14, 16));
-        cell.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(cell, Priority.ALWAYS);
-        return cell;
+
+        double monthlySpend = expenseDao.sumForCurrentMonth();
+        int expenseCount = expenseDao.findAll().size();
+        grid.getChildren().add(kindCard("#A32D2D", "Expense", expenseCount + " recorded",
+                currency(monthlySpend) + " /mo", "a month · " + currency(monthlySpend * 12) + " a year", null));
+
+        return new VBox(4, heading, subheading, grid);
+    }
+
+    private VBox kindCard(String swatchColor, String name, String countLine, String value, String subLine, Runnable onClick) {
+        Region swatch = new Region();
+        swatch.getStyleClass().add("legend-swatch");
+        swatch.setStyle("-fx-background-color: " + swatchColor + ";");
+        Label nameLabel = new Label(name);
+        nameLabel.setStyle("-fx-font-weight: 600;");
+        HBox nameRow = new HBox(6, swatch, nameLabel);
+        nameRow.setAlignment(Pos.CENTER_LEFT);
+
+        Label countLabel = new Label(countLine);
+        countLabel.getStyleClass().add("text-caption");
+
+        Label valueLabel = new Label(value);
+        valueLabel.getStyleClass().add("title-2");
+
+        Label subLabel = new Label(subLine);
+        subLabel.getStyleClass().add("text-caption");
+        if (subLine.startsWith("up")) subLabel.setStyle("-fx-text-fill: -color-success-fg;");
+        else if (subLine.startsWith("down")) subLabel.setStyle("-fx-text-fill: -color-danger-fg;");
+
+        VBox card = new VBox(4, nameRow, countLabel, valueLabel, subLabel);
+        card.getStyleClass().add("card");
+        card.setPadding(new Insets(16));
+        card.setPrefWidth(228);
+        if (onClick != null) {
+            card.setCursor(javafx.scene.Cursor.HAND);
+            card.setOnMouseClicked(e -> onClick.run());
+        }
+        return card;
+    }
+
+    /** Indian-style short money: Cr / L / k thresholds, matching the reference's KPI sub-notes. */
+    private String shortMoney(double value) {
+        String symbol = "₹";
+        if (value >= 1_00_00_000) return symbol + String.format("%.2f Cr", value / 1_00_00_000.0);
+        if (value >= 1_00_000) return symbol + String.format("%.2f L", value / 1_00_000.0);
+        if (value >= 1_000) return symbol + String.format("%.0fk", value / 1_000.0);
+        return symbol + String.format("%.0f", value);
     }
 
     private String currency(double amount) {

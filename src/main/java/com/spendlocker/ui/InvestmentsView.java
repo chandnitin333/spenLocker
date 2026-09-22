@@ -59,6 +59,7 @@ public class InvestmentsView extends BorderPane {
     private final ComboBox<String> typeFilter = new ComboBox<>();
     private final ComboBox<String> dateRangeFilter = new ComboBox<>();
     private final TextField searchField = new TextField();
+    private final VBox kpiStripBox = new VBox();
 
     public InvestmentsView() {
         setPadding(new Insets(24));
@@ -106,7 +107,9 @@ public class InvestmentsView extends BorderPane {
         filterBar.setAlignment(Pos.CENTER_LEFT);
         filterBar.setPadding(new Insets(0, 0, 16, 0));
 
-        VBox header = new VBox(toolbar, filterBar);
+        kpiStripBox.setPadding(new Insets(0, 0, 16, 0));
+
+        VBox header = new VBox(toolbar, kpiStripBox, filterBar);
 
         buildColumns();
         table.setItems(filteredData);
@@ -138,6 +141,7 @@ public class InvestmentsView extends BorderPane {
 
     public void refresh() {
         data.setAll(investmentDao.findAll());
+        refreshKpiStrip();
 
         java.util.Set<String> types = new java.util.LinkedHashSet<>();
         for (InvestmentType type : InvestmentType.values()) {
@@ -150,6 +154,22 @@ public class InvestmentsView extends BorderPane {
         typeFilter.setValue(typeFilter.getItems().contains(previousSelection) ? previousSelection : ALL_TYPES);
 
         applyFilters();
+    }
+
+    /** The reference design's Investments KPI strip: Invested / Value today / Gain / Return. */
+    private void refreshKpiStrip() {
+        double invested = investmentDao.sumPrincipal();
+        double valueToday = investmentDao.sumCurrentValue();
+        double gain = valueToday - invested;
+        double roi = investmentDao.overallRoiPercent();
+        boolean positive = gain >= 0;
+
+        kpiStripBox.getChildren().setAll(KpiStrip.strip(
+                KpiStrip.cell("Invested", com.spendlocker.util.MoneyFormat.currency(invested), null),
+                KpiStrip.cell("Value today", com.spendlocker.util.MoneyFormat.currency(valueToday), null),
+                KpiStrip.cellWithTag("Gain", com.spendlocker.util.MoneyFormat.currency(Math.abs(gain)),
+                        String.format("%s%.1f%%", positive ? "+" : "-", Math.abs(roi)), positive),
+                KpiStrip.cell("Return", String.format("%s%.2f%%", roi >= 0 ? "+" : "", roi), null)));
     }
 
     /** Drill-down from the Dashboard's Investment Allocation chart. */

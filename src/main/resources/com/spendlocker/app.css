@@ -328,6 +328,11 @@
     -fx-icon-color: -color-accent-emphasis;
 }
 
+.title-2 {
+    -fx-font-size: 22px;
+    -fx-letter-spacing: -0.02em;
+}
+
 .title-3 {
     -fx-font-size: 14px;
     -fx-letter-spacing: 0.005em;

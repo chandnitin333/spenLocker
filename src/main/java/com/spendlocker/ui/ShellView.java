@@ -20,19 +20,19 @@ import org.kordamp.ikonli.javafx.FontIcon;
 public class ShellView extends BorderPane {
 
     private final DashboardView dashboardView = new DashboardView(
-            category -> {
-                this.expensesView.refresh();
-                this.expensesView.filterByCategory(category);
-                this.setCenter(this.expensesView);
-                this.expensesBtn.setSelected(true);
-                this.currentAddAction = this.expensesView::triggerAddAction;
-            },
             type -> {
                 this.investmentsView.refresh();
                 this.investmentsView.filterByType(type);
                 this.setCenter(this.investmentsView);
                 this.investmentsBtn.setSelected(true);
                 this.currentAddAction = this.investmentsView::triggerAddAction;
+            },
+            bank -> {
+                this.depositsView.refresh();
+                this.depositsView.filterByBank(bank);
+                this.setCenter(this.depositsView);
+                this.depositsBtn.setSelected(true);
+                this.currentAddAction = this.depositsView::triggerAddAction;
             });
     private final ExpensesView expensesView = new ExpensesView();
     private final InvestmentsView investmentsView = new InvestmentsView();

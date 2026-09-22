@@ -62,6 +62,8 @@ public class ExpensesView extends BorderPane {
     private final ComboBox<String> dateRangeFilter = new ComboBox<>();
     private final ComboBox<String> categoryFilter = new ComboBox<>();
     private final TextField searchField = new TextField();
+    private final com.spendlocker.dao.RecurringExpenseDao recurringExpenseDao = new com.spendlocker.dao.RecurringExpenseDao();
+    private final VBox kpiStripBox = new VBox();
 
     public ExpensesView() {
         setPadding(new Insets(24));
@@ -123,7 +125,9 @@ public class ExpensesView extends BorderPane {
         filterBar.setAlignment(Pos.CENTER_LEFT);
         filterBar.setPadding(new Insets(0, 0, 16, 0));
 
-        VBox header = new VBox(toolbar, filterBar);
+        kpiStripBox.setPadding(new Insets(0, 0, 16, 0));
+
+        VBox header = new VBox(toolbar, kpiStripBox, filterBar);
 
         buildColumns();
         table.setItems(filteredData);
@@ -150,11 +154,31 @@ public class ExpensesView extends BorderPane {
 
     public void refresh() {
         data.setAll(expenseDao.findAll());
+        refreshKpiStrip();
         String previousCategory = categoryFilter.getValue();
         categoryFilter.getItems().setAll(ALL_CATEGORIES);
         categoryFilter.getItems().addAll(expenseDao.distinctCategories());
         categoryFilter.setValue(categoryFilter.getItems().contains(previousCategory) ? previousCategory : ALL_CATEGORIES);
         applyFilter();
+    }
+
+    /** The reference design's Expenses KPI strip: Committed monthly / Same over a year, using
+     *  the active recurring rules — plus this-month spend and total entries. */
+    private void refreshKpiStrip() {
+        double committedMonthly = recurringExpenseDao.findAll().stream()
+                .filter(com.spendlocker.model.RecurringExpense::isActive)
+                .mapToDouble(r -> switch (r.getFrequency()) {
+                    case WEEKLY -> r.getAmount() * 52 / 12;
+                    case MONTHLY -> r.getAmount();
+                    case YEARLY -> r.getAmount() / 12;
+                })
+                .sum();
+
+        kpiStripBox.getChildren().setAll(KpiStrip.strip(
+                KpiStrip.cell("Committed monthly", com.spendlocker.util.MoneyFormat.currency(committedMonthly), null),
+                KpiStrip.cell("Same over a year", com.spendlocker.util.MoneyFormat.currency(committedMonthly * 12), null),
+                KpiStrip.cell("This month", com.spendlocker.util.MoneyFormat.currency(expenseDao.sumForCurrentMonth()), null),
+                KpiStrip.cell("Entries", String.valueOf(expenseDao.findAll().size()), null)));
     }
 
     /** Invoked by the Cmd/Ctrl+N shortcut when this view is the active tab. */

@@ -28,6 +28,7 @@ public class RunwayChart extends javafx.scene.layout.Region {
     private final Canvas canvas = new Canvas();
     private List<String> labels = List.of();
     private List<Double> values = List.of();
+    private List<Color> barColors = null;
     private String currencySymbol = "";
 
     public RunwayChart() {
@@ -39,9 +40,16 @@ public class RunwayChart extends javafx.scene.layout.Region {
     }
 
     public void setData(List<String> labels, List<Double> values, String currencySymbol) {
+        setData(labels, values, currencySymbol, null);
+    }
+
+    /** barColors, when given, overrides the default teal per bar (e.g. urgency coloring:
+     *  red/amber/teal by days-to-maturity) — one entry per value, or null for the default. */
+    public void setData(List<String> labels, List<Double> values, String currencySymbol, List<Color> barColors) {
         this.labels = labels;
         this.values = values;
         this.currencySymbol = currencySymbol;
+        this.barColors = barColors;
         draw();
         installTooltips();
     }
@@ -97,11 +105,11 @@ public class RunwayChart extends javafx.scene.layout.Region {
         double[] px = new double[values.size()];
         double[] py = new double[values.size()];
 
-        gc.setFill(BAR_COLOR);
         for (int i = 0; i < values.size(); i++) {
             double cx = paddingLeft + slot * i + slot / 2;
             double barH = values.get(i) / maxValue * chartH;
             double top = paddingTop + (chartH - barH);
+            gc.setFill(barColors != null && i < barColors.size() ? barColors.get(i) : BAR_COLOR);
             gc.fillRoundRect(cx - barWidth / 2, top, barWidth, barH, 4, 4);
 
             px[i] = cx;
@@ -112,7 +120,6 @@ public class RunwayChart extends javafx.scene.layout.Region {
                 gc.setTextAlign(TextAlignment.CENTER);
                 gc.setTextBaseline(VPos.BASELINE);
                 gc.fillText(labels.get(i), cx, h - 4);
-                gc.setFill(BAR_COLOR);
             }
         }
 
