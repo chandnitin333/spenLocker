@@ -267,10 +267,6 @@ public class SettingsView extends VBox {
     }
 
     private void onBackupToDrive(Button trigger) {
-        if (!googleDriveService.isSignedIn()) {
-            AlertUtil.error("Backup failed", "Sign in with Google first (see the Google Drive section above).");
-            return;
-        }
         java.io.File tempZip;
         try {
             tempZip = java.io.File.createTempFile("spendlocker-backup-", ".zip");
@@ -286,6 +282,11 @@ public class SettingsView extends VBox {
         SessionGuard.suspendAutoLock();
         new Thread(() -> {
             try {
+                // A previous sign-in's cached token restores silently here (no browser popup)
+                // if still valid — only truly signing in for the first time opens a browser.
+                if (!googleDriveService.isSignedIn()) {
+                    googleDriveService.signIn();
+                }
                 googleDriveService.uploadFile(tempZip, "application/zip", driveFileName);
                 javafx.application.Platform.runLater(() -> {
                     SessionGuard.resumeAutoLock();
@@ -543,11 +544,6 @@ public class SettingsView extends VBox {
             String fromFilter = fromFilterField.getText();
             boolean useGoogleAuth = isGmailHost(host) && useGoogleAuthCheck.isSelected();
 
-            if (useGoogleAuth && !googleDriveService.isSignedIn()) {
-                AlertUtil.error("Sync failed", "Sign in with Google first (see the Google Drive section above).");
-                return;
-            }
-
             // IMAP connect + fetch can take several seconds (or hang on a bad host/firewall);
             // running it on the FX thread froze the whole app with no feedback, which looked
             // like the feature was simply "not working". Run it in the background instead.
@@ -558,6 +554,11 @@ public class SettingsView extends VBox {
                     String effectiveUser = user;
                     String effectivePassword = password;
                     if (useGoogleAuth) {
+                        // A previous sign-in's cached token restores silently here (no browser
+                        // popup) if still valid — only truly signing in for the first time opens one.
+                        if (!googleDriveService.isSignedIn()) {
+                            googleDriveService.signIn();
+                        }
                         effectiveUser = googleDriveService.signedInEmail();
                         effectivePassword = googleDriveService.getAccessTokenForImap();
                     }

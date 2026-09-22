@@ -257,15 +257,16 @@ public class ExpensesView extends BorderPane {
      * the cross-device sync bridge — not a merge, a full overwrite of that tab from this device.
      */
     private void onSyncToDrive(Button trigger) {
-        if (!driveService.isSignedIn()) {
-            AlertUtil.error("Sync failed", "Sign in with Google first (see the Google Drive section in Settings).");
-            return;
-        }
         List<Expense> snapshot = expenseDao.findAll();
         trigger.setDisable(true);
         SessionGuard.suspendAutoLock();
         new Thread(() -> {
             try {
+                // A previous sign-in's cached token restores silently here (no browser popup)
+                // if still valid — only truly signing in for the first time opens a browser.
+                if (!driveService.isSignedIn()) {
+                    driveService.signIn();
+                }
                 sheetsService.syncExpenses(snapshot);
                 javafx.application.Platform.runLater(() -> {
                     SessionGuard.resumeAutoLock();
