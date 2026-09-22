@@ -52,6 +52,8 @@ public class ShellView extends BorderPane {
         this.currentAddAction = this.depositsView::triggerAddAction;
     });
     private final InterestByYearView interestByYearView = new InterestByYearView();
+    private final NetWorthView netWorthView = new NetWorthView();
+    private final SendExportView sendExportView = new SendExportView();
     private final DocumentsView documentsView = new DocumentsView();
     private final TrashView trashView = new TrashView();
     private final SettingsView settingsView = new SettingsView();
@@ -65,6 +67,8 @@ public class ShellView extends BorderPane {
     private ToggleButton banksBtn;
     private ToggleButton peopleBtn;
     private ToggleButton interestByYearBtn;
+    private ToggleButton netWorthBtn;
+    private ToggleButton sendExportBtn;
     private ToggleButton documentsBtn;
     private TextField searchField;
     private Runnable currentAddAction;
@@ -123,6 +127,8 @@ public class ShellView extends BorderPane {
         interestByYearBtn = navButton("Interest by Year", Feather.BAR_CHART_2, group, false);
         expensesBtn = navButton("Expenses", Feather.CREDIT_CARD, group, false);
         investmentsBtn = navButton("Investments", Feather.TRENDING_UP, group, false);
+        netWorthBtn = navButton("Net Worth", Feather.LAYERS, group, false);
+        sendExportBtn = navButton("Send & Export", Feather.SEND, group, false);
         documentsBtn = navButton("Documents", Feather.FOLDER, group, false);
         ToggleButton trashBtn = navButton("Trash", Feather.TRASH_2, group, false);
         ToggleButton settingsBtn = navButton("Settings", Feather.SETTINGS, group, false);
@@ -134,6 +140,8 @@ public class ShellView extends BorderPane {
         interestByYearBtn.setOnAction(e -> { interestByYearView.refresh(); setCenter(interestByYearView); currentAddAction = null; });
         expensesBtn.setOnAction(e -> { expensesView.refresh(); setCenter(expensesView); currentAddAction = expensesView::triggerAddAction; });
         investmentsBtn.setOnAction(e -> { investmentsView.refresh(); setCenter(investmentsView); currentAddAction = investmentsView::triggerAddAction; });
+        netWorthBtn.setOnAction(e -> { netWorthView.refresh(); setCenter(netWorthView); currentAddAction = null; });
+        sendExportBtn.setOnAction(e -> { sendExportView.refresh(); setCenter(sendExportView); currentAddAction = null; });
         documentsBtn.setOnAction(e -> { documentsView.refresh(); setCenter(documentsView); currentAddAction = null; });
         trashBtn.setOnAction(e -> { trashView.refresh(); setCenter(trashScroll); currentAddAction = null; });
         settingsBtn.setOnAction(e -> { setCenter(settingsScroll); currentAddAction = null; });
@@ -142,7 +150,7 @@ public class ShellView extends BorderPane {
         VBox.setVgrow(spacer, Priority.ALWAYS);
 
         sidebar.getChildren().addAll(brandRow, searchBox, dashboardBtn, depositsBtn, banksBtn, peopleBtn, interestByYearBtn,
-                expensesBtn, investmentsBtn, documentsBtn, trashBtn, spacer, settingsBtn);
+                expensesBtn, investmentsBtn, netWorthBtn, sendExportBtn, documentsBtn, trashBtn, spacer, settingsBtn);
         return sidebar;
     }
 
