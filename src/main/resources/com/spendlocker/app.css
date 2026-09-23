@@ -353,6 +353,14 @@
     -fx-letter-spacing: -0.02em;
 }
 
+/* DonutChart's centered total — smaller than title-2 since it has to fit inside the ring's
+   inner hole, not the width of a whole card. */
+.donut-total {
+    -fx-font-family: "Archivo SemiBold";
+    -fx-font-size: 16px;
+    -fx-letter-spacing: -0.02em;
+}
+
 .title-3 {
     -fx-font-size: 14px;
     -fx-letter-spacing: 0.005em;

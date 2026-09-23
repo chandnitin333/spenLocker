@@ -35,10 +35,20 @@ public class DonutChart extends StackPane {
     private double hoverCx, hoverCy, hoverInnerR, hoverOuterR, hoverTotal;
 
     public DonutChart() {
-        totalLabel.getStyleClass().add("title-2");
+        // A fixed 22px (title-2) label overflowed the inner hole and spilled onto the ring for
+        // any large total (e.g. "₹1,33,66,989") — cap the width to the actual inner-circle
+        // diameter (innerR is ~63% of outerR, which is itself ~half the component's own size)
+        // and wrap/shrink instead of overlapping the colored segments.
+        totalLabel.getStyleClass().add("donut-total");
+        totalLabel.setWrapText(true);
+        totalLabel.setTextAlignment(TextAlignment.CENTER);
         captionLabel.getStyleClass().add("text-caption");
+        captionLabel.setWrapText(true);
+        captionLabel.setTextAlignment(TextAlignment.CENTER);
         centerText.getChildren().addAll(totalLabel, captionLabel);
         centerText.setAlignment(javafx.geometry.Pos.CENTER);
+        centerText.maxWidthProperty().bind(widthProperty().multiply(0.56));
+        centerText.maxHeightProperty().bind(heightProperty().multiply(0.56));
         setPrefSize(200, 200);
         getChildren().addAll(canvas, centerText);
         canvas.widthProperty().bind(widthProperty());
