@@ -55,16 +55,17 @@ public class EmailSyncService {
         props.put(protocolPrefix + ".connectiontimeout", "10000");
         props.put(protocolPrefix + ".timeout", "10000");
         if (oauthAccessToken) {
-            // Jakarta Mail bundles XOAUTH2 SASL support (com.sun.mail.auth.OAuth2SaslClient)
-            // but never registers it with the JVM's Security provider list on its own — without
-            // this call, Sasl.createSaslClient("XOAUTH2", ...) finds no provider, and the IMAP
-            // negotiation either fails with a generic auth error or gets stuck mid-handshake
-            // (surfacing as "* BYE ... Read timed out" once the server gives up waiting).
-            com.sun.mail.auth.OAuth2SaslClientFactory.init();
-            props.put(protocolPrefix + ".sasl.enable", "true");
-            props.put(protocolPrefix + ".sasl.mechanisms", "XOAUTH2");
-            props.put(protocolPrefix + ".auth.login.disable", "true");
-            props.put(protocolPrefix + ".auth.plain.disable", "true");
+            // IMAPProtocol.authoauth2(user, token) is Jakarta Mail's own NATIVE XOAUTH2
+            // implementation — it builds the "user=...\x01auth=Bearer ...\x01\x01" string and
+            // sends AUTHENTICATE XOAUTH2 directly, with no dependency on the generic
+            // javax.security.sasl framework at all. Setting sasl.enable=true (an earlier attempt
+            // at this fix) instead forces IMAPStore through IMAPSaslAuthenticator, which needs a
+            // SaslClientFactory registered for "XOAUTH2" — a mechanism with no standard JDK
+            // provider — and its callback handler doesn't actually populate the token in this
+            // Jakarta Mail build ("SASL no response" in the protocol trace, confirmed via
+            // mail.debug). auth.mechanisms is the right property: it picks XOAUTH2 from
+            // IMAPStore's own default list and dispatches straight to authoauth2().
+            props.put(protocolPrefix + ".auth.mechanisms", "XOAUTH2");
         }
 
         // Prints the raw IMAP protocol exchange (commands/responses, not credentials in the

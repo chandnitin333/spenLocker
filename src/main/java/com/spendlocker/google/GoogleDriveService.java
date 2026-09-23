@@ -125,7 +125,16 @@ public class GoogleDriveService {
         requireSignedIn();
         Long expiresIn = credential.getExpiresInSeconds();
         if (expiresIn == null || expiresIn < 300) {
-            credential.refreshToken();
+            // refreshToken() returning false (refresh token itself invalid/revoked) was being
+            // ignored — the stale/expired access token got sent to Gmail anyway, which rejects
+            // it with a generic "Invalid credentials" that gives no hint what actually went
+            // wrong. Surface it clearly instead so the fix (reconnect Google Drive) is obvious.
+            if (!credential.refreshToken()) {
+                drive = null;
+                credential = null;
+                signedInEmail = null;
+                throw new IOException("Google sign-in has expired. Reconnect Google Drive in Settings, then try again.");
+            }
         }
         return credential.getAccessToken();
     }
