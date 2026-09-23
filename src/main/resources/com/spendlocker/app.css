@@ -424,6 +424,32 @@
     -fx-background-radius: 6px, 5px;
 }
 
+/* AtlantaFX doesn't style ComboBox/ChoiceBox dropdown list cells at all, so they were
+   falling back to raw JavaFX Modena defaults — a blue hover/selection that clashed with
+   the ledger palette everywhere else. */
+.combo-box-popup .list-view {
+    -fx-background-color: -color-bg-subtle;
+    -fx-border-color: -color-border-default;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+}
+
+.combo-box-popup .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: -color-fg-default;
+    -fx-padding: 7 12 7 12;
+}
+
+.combo-box-popup .list-cell:filled:hover {
+    -fx-background-color: -color-accent-subtle;
+    -fx-text-fill: -color-fg-default;
+}
+
+.combo-box-popup .list-cell:filled:selected {
+    -fx-background-color: -color-accent-emphasis;
+    -fx-text-fill: -color-fg-emphasis;
+}
+
 .search-field {
     -fx-background-color: -color-bg-subtle;
     -fx-background-radius: 6;
