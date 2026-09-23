@@ -233,12 +233,14 @@ public class DashboardView extends VBox {
         for (int i = 0; i < 12; i++) months.add(YearMonth.from(fyStart.plusMonths(i)));
 
         double[] totals = new double[12];
+        int[] counts = new int[12];
         Long[] minDays = new Long[12];
         for (FixedDeposit fd : allDeposits) {
             YearMonth maturityMonth = YearMonth.from(LocalDate.parse(fd.getMaturityDate()));
             int idx = months.indexOf(maturityMonth);
             if (idx < 0) continue; // outside the selected financial year
             totals[idx] += FixedDepositCalculator.maturityAmount(fd);
+            counts[idx]++;
             Long daysLeft = FixedDepositCalculator.daysLeft(fd.getMaturityDate());
             if (minDays[idx] == null || daysLeft < minDays[idx]) minDays[idx] = daysLeft;
         }
@@ -265,14 +267,28 @@ public class DashboardView extends VBox {
 
         Label heading = new Label("Maturity runway (" + financialYear + ")");
         heading.getStyleClass().add("title-3");
-        Label readout = new Label(fyTotal > 0
+        String defaultReadout = fyTotal > 0
                 ? String.format("%s maturing across %s", currency(fyTotal), financialYear)
-                : "Nothing matures in " + financialYear);
+                : "Nothing matures in " + financialYear;
+        Label readout = new Label(defaultReadout);
         readout.getStyleClass().add("text-caption");
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         HBox headingRow = new HBox(10, heading, spacer, readout);
         headingRow.setAlignment(Pos.CENTER_LEFT);
+
+        // Hover any month -> the readout swaps to that month's detail, matching the reference's
+        // own "hover to read" behavior; moving off restores the FY summary above.
+        chart.setOnBarHover(
+                idx -> {
+                    String monthLabel = months.get(idx).getMonth().getDisplayName(TextStyle.FULL, Locale.getDefault())
+                            + " " + months.get(idx).getYear();
+                    readout.setText(counts[idx] > 0
+                            ? String.format("%s · %d deposit%s · %s", monthLabel, counts[idx],
+                                    counts[idx] == 1 ? "" : "s", currency(totals[idx]))
+                            : monthLabel + " · nothing maturing");
+                },
+                () -> readout.setText(defaultReadout));
 
         VBox section = new VBox(10, headingRow, chart);
         VBox.setVgrow(chart, Priority.ALWAYS);

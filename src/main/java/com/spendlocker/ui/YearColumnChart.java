@@ -1,8 +1,10 @@
 package com.spendlocker.ui;
 
+import javafx.geometry.Point2D;
 import javafx.geometry.VPos;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.Tooltip;
 import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
 
@@ -23,6 +25,9 @@ public class YearColumnChart extends javafx.scene.layout.Region {
     private List<Double> values = List.of();
     private List<Boolean> past = List.of();
     private String currencySymbol = "";
+    private final Tooltip tooltip = new Tooltip();
+    private double hoverPaddingSide;
+    private double hoverSlot;
 
     public YearColumnChart() {
         getChildren().add(canvas);
@@ -30,6 +35,26 @@ public class YearColumnChart extends javafx.scene.layout.Region {
         canvas.heightProperty().bind(heightProperty());
         widthProperty().addListener((o, a, b) -> draw());
         heightProperty().addListener((o, a, b) -> draw());
+        canvas.setOnMouseMoved(e -> handleHover(e.getX(), e.getY()));
+        canvas.setOnMouseExited(e -> tooltip.hide());
+    }
+
+    private void handleHover(double mx, double my) {
+        if (values.isEmpty() || hoverSlot <= 0) {
+            tooltip.hide();
+            return;
+        }
+        int idx = (int) ((mx - hoverPaddingSide) / hoverSlot);
+        if (idx < 0 || idx >= values.size()) {
+            tooltip.hide();
+            return;
+        }
+        tooltip.setText(String.format("%s · %s — %s",
+                yearLabels.get(idx), subLabels.get(idx), com.spendlocker.util.MoneyFormat.currency(values.get(idx))));
+        Point2D screen = canvas.localToScreen(mx, my);
+        if (screen != null) {
+            tooltip.show(canvas, screen.getX() + 12, screen.getY() + 12);
+        }
     }
 
     public void setData(List<String> yearLabels, List<String> subLabels, List<Double> values, List<Boolean> past, String currencySymbol) {
@@ -57,6 +82,8 @@ public class YearColumnChart extends javafx.scene.layout.Region {
         double maxValue = Math.max(values.stream().mapToDouble(Double::doubleValue).max().orElse(1), 1);
         double slot = chartW / values.size();
         double barWidth = Math.min(52, slot * 0.5);
+        hoverPaddingSide = paddingSide;
+        hoverSlot = slot;
 
         gc.setStroke(Color.web("#0D2B2A", 0.16));
         gc.setLineWidth(1);

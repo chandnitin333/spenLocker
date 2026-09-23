@@ -3,7 +3,6 @@ package com.spendlocker.ui;
 import javafx.geometry.VPos;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.control.Tooltip;
 import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
 
@@ -30,6 +29,11 @@ public class RunwayChart extends javafx.scene.layout.Region {
     private List<Double> values = List.of();
     private List<Color> barColors = null;
     private String currencySymbol = "";
+    private double hoverPaddingLeft;
+    private double hoverSlot;
+    private java.util.function.IntConsumer onBarHover;
+    private Runnable onHoverExit;
+    private int hoveredIndex = -1;
 
     public RunwayChart() {
         getChildren().add(canvas);
@@ -37,6 +41,35 @@ public class RunwayChart extends javafx.scene.layout.Region {
         canvas.heightProperty().bind(heightProperty());
         widthProperty().addListener((obs, o, n) -> draw());
         heightProperty().addListener((obs, o, n) -> draw());
+        canvas.setOnMouseMoved(e -> handleHover(e.getX()));
+        canvas.setOnMouseExited(e -> {
+            hoveredIndex = -1;
+            if (onHoverExit != null) onHoverExit.run();
+        });
+    }
+
+    /** Fires on every month column the mouse moves over (index into the arrays passed to
+     *  setData), and once more when the mouse leaves — the reference's own hover-to-read
+     *  behavior: show that month's value while hovering, restore the default readout on exit. */
+    public void setOnBarHover(java.util.function.IntConsumer onBarHover, Runnable onHoverExit) {
+        this.onBarHover = onBarHover;
+        this.onHoverExit = onHoverExit;
+    }
+
+    private void handleHover(double mouseX) {
+        if (values.isEmpty() || hoverSlot <= 0) return;
+        int idx = (int) ((mouseX - hoverPaddingLeft) / hoverSlot);
+        if (idx < 0 || idx >= values.size()) {
+            if (hoveredIndex != -1) {
+                hoveredIndex = -1;
+                if (onHoverExit != null) onHoverExit.run();
+            }
+            return;
+        }
+        if (idx != hoveredIndex) {
+            hoveredIndex = idx;
+            if (onBarHover != null) onBarHover.accept(idx);
+        }
     }
 
     public void setData(List<String> labels, List<Double> values, String currencySymbol) {
@@ -51,17 +84,6 @@ public class RunwayChart extends javafx.scene.layout.Region {
         this.currencySymbol = currencySymbol;
         this.barColors = barColors;
         draw();
-        installTooltips();
-    }
-
-    private void installTooltips() {
-        StringBuilder summary = new StringBuilder();
-        for (int i = 0; i < values.size() && i < labels.size(); i++) {
-            if (i > 0) summary.append("   ");
-            summary.append(labels.get(i)).append(": ").append(currencySymbol)
-                    .append(String.format("%,.0f", values.get(i)));
-        }
-        Tooltip.install(this, new Tooltip(summary.toString()));
     }
 
     private void draw() {
@@ -81,6 +103,8 @@ public class RunwayChart extends javafx.scene.layout.Region {
         double maxValue = Math.max(values.stream().mapToDouble(Double::doubleValue).max().orElse(1), 1);
         double slot = chartW / values.size();
         double barWidth = slot * 0.45;
+        hoverPaddingLeft = paddingLeft;
+        hoverSlot = slot;
 
         // Reference-style gridlines at 0/50%/100% with short-money axis labels.
         gc.setStroke(GRID_COLOR);

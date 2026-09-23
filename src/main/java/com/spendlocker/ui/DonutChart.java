@@ -1,15 +1,19 @@
 package com.spendlocker.ui;
 
+import javafx.geometry.Point2D;
 import javafx.geometry.VPos;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Label;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -22,6 +26,13 @@ public class DonutChart extends StackPane {
     private final VBox centerText = new VBox(2);
     private final Label totalLabel = new Label();
     private final Label captionLabel = new Label();
+    private final Tooltip tooltip = new Tooltip();
+
+    // Hover hit-testing state, refreshed on every draw().
+    private final List<double[]> segmentAngleRanges = new ArrayList<>();
+    private final List<String> segmentNames = new ArrayList<>();
+    private final List<Double> segmentValues = new ArrayList<>();
+    private double hoverCx, hoverCy, hoverInnerR, hoverOuterR, hoverTotal;
 
     public DonutChart() {
         totalLabel.getStyleClass().add("title-2");
@@ -34,6 +45,44 @@ public class DonutChart extends StackPane {
         canvas.heightProperty().bind(heightProperty());
         widthProperty().addListener((o, a, b) -> draw(lastData));
         heightProperty().addListener((o, a, b) -> draw(lastData));
+        canvas.setOnMouseMoved(e -> handleHover(e.getX(), e.getY()));
+        canvas.setOnMouseExited(e -> tooltip.hide());
+    }
+
+    private void handleHover(double mx, double my) {
+        if (segmentAngleRanges.isEmpty()) {
+            tooltip.hide();
+            return;
+        }
+        double dx = mx - hoverCx, dy = my - hoverCy;
+        double dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < hoverInnerR || dist > hoverOuterR) {
+            tooltip.hide();
+            return;
+        }
+        double angle = Math.toDegrees(Math.atan2(-dy, dx));
+        if (angle < 0) angle += 360;
+
+        for (int i = 0; i < segmentAngleRanges.size(); i++) {
+            double high = segmentAngleRanges.get(i)[0];
+            double low = segmentAngleRanges.get(i)[1];
+            if (isWithin(angle, low, high) || isWithin(angle - 360, low, high) || isWithin(angle + 360, low, high)) {
+                double value = segmentValues.get(i);
+                double pct = hoverTotal > 0 ? (value / hoverTotal) * 100 : 0;
+                tooltip.setText(String.format("%s — %s (%.1f%%)", segmentNames.get(i),
+                        com.spendlocker.util.MoneyFormat.currency(value), pct));
+                Point2D screen = canvas.localToScreen(mx, my);
+                if (screen != null) {
+                    tooltip.show(canvas, screen.getX() + 12, screen.getY() + 12);
+                }
+                return;
+            }
+        }
+        tooltip.hide();
+    }
+
+    private boolean isWithin(double a, double low, double high) {
+        return a <= high && a >= low;
     }
 
     private LinkedHashMap<String, Double> lastData = new LinkedHashMap<>();
@@ -50,6 +99,9 @@ public class DonutChart extends StackPane {
         double w = canvas.getWidth();
         double h = canvas.getHeight();
         gc.clearRect(0, 0, w, h);
+        segmentAngleRanges.clear();
+        segmentNames.clear();
+        segmentValues.clear();
         if (w <= 0 || h <= 0 || data == null || data.isEmpty()) return;
 
         double total = data.values().stream().mapToDouble(Double::doubleValue).sum();
@@ -60,6 +112,11 @@ public class DonutChart extends StackPane {
         double innerR = outerR * 0.63; // matches the reference's inner58/outer92 ratio
         double strokeWidth = outerR - innerR;
         double ringRadius = (outerR + innerR) / 2;
+        hoverCx = cx;
+        hoverCy = cy;
+        hoverInnerR = innerR;
+        hoverOuterR = outerR;
+        hoverTotal = total;
 
         int n = data.size();
         int i = 0;
@@ -74,6 +131,10 @@ public class DonutChart extends StackPane {
             gc.setLineCap(javafx.scene.shape.StrokeLineCap.BUTT);
             gc.strokeArc(cx - ringRadius, cy - ringRadius, ringRadius * 2, ringRadius * 2,
                     startAngle - sweep, Math.max(sweep - gapDeg, 0), javafx.scene.shape.ArcType.OPEN);
+
+            segmentAngleRanges.add(new double[] {startAngle, startAngle - sweep});
+            segmentNames.add(entry.getKey());
+            segmentValues.add(entry.getValue());
 
             startAngle -= sweep;
             i++;
