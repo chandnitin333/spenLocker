@@ -55,13 +55,24 @@ public class EmailSyncService {
         props.put(protocolPrefix + ".connectiontimeout", "10000");
         props.put(protocolPrefix + ".timeout", "10000");
         if (oauthAccessToken) {
+            // Jakarta Mail bundles XOAUTH2 SASL support (com.sun.mail.auth.OAuth2SaslClient)
+            // but never registers it with the JVM's Security provider list on its own — without
+            // this call, Sasl.createSaslClient("XOAUTH2", ...) finds no provider, and the IMAP
+            // negotiation either fails with a generic auth error or gets stuck mid-handshake
+            // (surfacing as "* BYE ... Read timed out" once the server gives up waiting).
+            com.sun.mail.auth.OAuth2SaslClientFactory.init();
             props.put(protocolPrefix + ".sasl.enable", "true");
             props.put(protocolPrefix + ".sasl.mechanisms", "XOAUTH2");
             props.put(protocolPrefix + ".auth.login.disable", "true");
             props.put(protocolPrefix + ".auth.plain.disable", "true");
         }
 
+        // Prints the raw IMAP protocol exchange (commands/responses, not credentials in the
+        // clear beyond what the server itself echoes) to stdout — the fastest way to tell a
+        // real auth rejection apart from a hung/misconfigured SASL handshake.
+        props.put("mail.debug", "true");
         Session session = Session.getInstance(props);
+        session.setDebug(true);
         List<Document> imported = new ArrayList<>();
 
         try (Store store = session.getStore(useSsl ? "imaps" : "imap")) {

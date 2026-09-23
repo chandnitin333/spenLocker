@@ -3,37 +3,47 @@ package com.spendlocker.ui;
 import com.spendlocker.db.DatabaseManager;
 import com.spendlocker.db.VaultLockedException;
 import com.spendlocker.security.TouchIdService;
+import com.spendlocker.ui.dialog.PrivacyPolicyDialog;
 import com.spendlocker.ui.dialog.RecoveryKeyPromptDialog;
 import com.spendlocker.util.AlertUtil;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import org.kordamp.ikonli.feather.Feather;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.util.Optional;
 
-/** First-run "create master password" / returning "unlock vault" dialog. */
+/** First-run "create master password" / returning "unlock vault" dialog, styled as a centered
+ *  card (icon + wordmark + spacious fields) rather than a bare label/field grid. */
 public class LoginDialog {
 
     public static LoginResult prompt() {
         boolean firstRun = !DatabaseManager.vaultExists();
 
+        // New vaults require reading and accepting the privacy policy before registration
+        // continues — returning users already accepted this when their vault was created.
+        if (firstRun && !PrivacyPolicyDialog.promptForAcceptance()) {
+            return LoginResult.cancelled();
+        }
+
         Dialog<LoginResult> dialog = new Dialog<>();
         com.spendlocker.util.DialogUtil.styleWith(dialog.getDialogPane());
         dialog.setTitle("Wealth Book");
-        dialog.setHeaderText(firstRun
-                ? "Create a master password for your new encrypted vault"
-                : "Enter your master password to unlock the vault");
 
         ButtonType unlockButtonType = new ButtonType(firstRun ? "Create Vault" : "Unlock", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(unlockButtonType, ButtonType.CANCEL);
 
         MaskedField password = new MaskedField();
         MaskedField confirm = new MaskedField();
+        for (MaskedField field : new MaskedField[] {password, confirm}) {
+            field.setPrefWidth(320);
+            field.setPrefHeight(38);
+        }
 
         CheckBox showPassword = new CheckBox("Show password");
         showPassword.selectedProperty().addListener((obs, old, show) -> {
@@ -41,25 +51,55 @@ public class LoginDialog {
             confirm.setRevealed(show);
         });
 
-        GridPane grid = new GridPane();
-        grid.setHgap(10);
-        grid.setVgap(10);
-        grid.setPadding(new Insets(20, 20, 10, 20));
-        grid.add(new Label("Password:"), 0, 0);
-        grid.add(password, 1, 0);
-        int nextRow = 1;
-        if (firstRun) {
-            grid.add(new Label("Confirm:"), 0, nextRow);
-            grid.add(confirm, 1, nextRow++);
-        }
-        grid.add(showPassword, 1, nextRow++);
+        // Wordmark header: the same lock icon + "Wealth Book" wordmark the sidebar uses, plus a
+        // per-mode subtitle — a real branded header instead of a bare dialog headerText line.
+        FontIcon lockIcon = new FontIcon(Feather.LOCK);
+        lockIcon.setIconSize(30);
+        lockIcon.getStyleClass().add("brand-icon");
 
+        Label wealthLabel = new Label("Wealth ");
+        wealthLabel.getStyleClass().add("brand-title");
+        wealthLabel.setStyle("-fx-font-size: 26px;");
+        Label bookLabel = new Label("Book");
+        bookLabel.getStyleClass().addAll("brand-title", "brand-title-accent");
+        bookLabel.setStyle("-fx-font-size: 26px;");
+        HBox wordmark = new HBox(wealthLabel, bookLabel);
+        wordmark.setAlignment(Pos.BASELINE_CENTER);
+
+        Label subtitle = new Label(firstRun
+                ? "Create a master password for your new encrypted vault"
+                : "Enter your master password to unlock the vault");
+        subtitle.getStyleClass().add("text-caption");
+        subtitle.setWrapText(true);
+        subtitle.setMaxWidth(320);
+        subtitle.setAlignment(Pos.CENTER);
+        subtitle.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
+
+        VBox header = new VBox(6, lockIcon, wordmark, subtitle);
+        header.setAlignment(Pos.CENTER);
+
+        VBox fieldsBox = new VBox(10, password);
+        fieldsBox.setAlignment(Pos.CENTER);
+        if (firstRun) {
+            fieldsBox.getChildren().add(confirm);
+        }
+        HBox showPasswordRow = new HBox(showPassword);
+        showPasswordRow.setAlignment(Pos.CENTER);
+        fieldsBox.getChildren().add(showPasswordRow);
+
+        VBox secondary = new VBox(10);
+        secondary.setAlignment(Pos.CENTER);
         if (!firstRun) {
             Hyperlink forgotLink = new Hyperlink("Forgot your master password?");
             forgotLink.setOnAction(e -> onForgotPassword(dialog));
-            grid.add(forgotLink, 1, nextRow++);
+            secondary.getChildren().add(forgotLink);
+            addTouchIdButtonIfAvailable(dialog, secondary);
         }
-        dialog.getDialogPane().setContent(grid);
+
+        VBox content = new VBox(20, header, fieldsBox, secondary);
+        content.setAlignment(Pos.CENTER);
+        content.setPadding(new Insets(28, 32, 16, 32));
+        dialog.getDialogPane().setContent(content);
 
         Node unlockButton = dialog.getDialogPane().lookupButton(unlockButtonType);
         unlockButton.setDisable(true);
@@ -70,21 +110,18 @@ public class LoginDialog {
                 unlockButton.setDisable(val == null
                         || !val.equals(password.getText()) || password.getText().isBlank()));
 
-        if (!firstRun) {
-            addTouchIdButtonIfAvailable(dialog, grid, nextRow);
-        }
-
         dialog.setResultConverter(button ->
                 button == unlockButtonType ? LoginResult.password(password.getText()) : LoginResult.cancelled());
         return dialog.showAndWait().orElse(LoginResult.cancelled());
     }
 
-    private static void addTouchIdButtonIfAvailable(Dialog<LoginResult> dialog, GridPane grid, int row) {
+    private static void addTouchIdButtonIfAvailable(Dialog<LoginResult> dialog, VBox secondary) {
         TouchIdService touchId = new TouchIdService();
         if (!touchId.isEnrolled()) return; // avoid the (slow, first-run) compile check when it's never been set up
 
         Button touchIdButton = new Button("Unlock with Touch ID", new FontIcon(Feather.LOCK));
         touchIdButton.getStyleClass().add("accent");
+        touchIdButton.setMaxWidth(Double.MAX_VALUE);
         touchIdButton.setOnAction(e -> {
             touchIdButton.setDisable(true);
             new Thread(() -> {
@@ -106,8 +143,7 @@ public class LoginDialog {
             }, "touchid-unlock").start();
         });
 
-        HBox row2 = new HBox(touchIdButton);
-        grid.add(row2, 1, row);
+        secondary.getChildren().add(touchIdButton);
     }
 
     private static void onForgotPassword(Dialog<LoginResult> outerDialog) {
