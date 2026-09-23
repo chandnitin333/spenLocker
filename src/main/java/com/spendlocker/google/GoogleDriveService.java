@@ -136,7 +136,29 @@ public class GoogleDriveService {
                 throw new IOException("Google sign-in has expired. Reconnect Google Drive in Settings, then try again.");
             }
         }
-        return credential.getAccessToken();
+        String token = credential.getAccessToken();
+        logGrantedScopes(token);
+        return token;
+    }
+
+    /**
+     * Diagnostic only: asks Google directly which scopes this access token actually carries.
+     * Gmail IMAP rejects a token with "Invalid credentials" both when it's expired/malformed
+     * AND when it's valid but simply lacks the mail.google.com scope (e.g. an unverified app's
+     * restricted-scope grant was silently dropped) — those two cases are indistinguishable from
+     * the IMAP error alone, so ask the tokeninfo endpoint and print the real answer to stdout.
+     */
+    private void logGrantedScopes(String accessToken) {
+        try {
+            var client = java.net.http.HttpClient.newHttpClient();
+            var request = java.net.http.HttpRequest.newBuilder()
+                    .uri(java.net.URI.create("https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=" + accessToken))
+                    .GET().build();
+            var response = client.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
+            System.out.println("[GoogleDriveService] tokeninfo (" + response.statusCode() + "): " + response.body());
+        } catch (Exception ex) {
+            System.out.println("[GoogleDriveService] tokeninfo check failed: " + ex.getMessage());
+        }
     }
 
     public void signOut() throws IOException {
