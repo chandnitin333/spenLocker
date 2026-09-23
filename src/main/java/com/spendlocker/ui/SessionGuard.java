@@ -58,6 +58,15 @@ public class SessionGuard {
         }
     }
 
+    /** Re-locks the vault right now, same as the auto-lock timeout firing — for a user-triggered
+     *  "Lock Vault" action rather than waiting on inactivity. */
+    public static void lockImmediately() {
+        if (activeInstance != null) {
+            activeInstance.idleTimer.stop();
+            activeInstance.lockNow();
+        }
+    }
+
     private void resetTimer(Event event) {
         if (suspendCount == 0) {
             idleTimer.playFromStart();

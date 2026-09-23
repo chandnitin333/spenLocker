@@ -2,6 +2,7 @@ package com.spendlocker.ui;
 
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
@@ -133,6 +134,12 @@ public class ShellView extends BorderPane {
         ToggleButton trashBtn = navButton("Trash", Feather.TRASH_2, group, false);
         ToggleButton settingsBtn = navButton("Settings", Feather.SETTINGS, group, false);
 
+        Button lockButton = new Button("Lock Vault", new FontIcon(Feather.LOCK));
+        lockButton.getStyleClass().add("nav-button");
+        lockButton.setMaxWidth(Double.MAX_VALUE);
+        lockButton.setAlignment(Pos.CENTER_LEFT);
+        lockButton.setOnAction(e -> SessionGuard.lockImmediately());
+
         dashboardBtn.setOnAction(e -> { dashboardView.refresh(); setCenter(dashboardScroll); currentAddAction = null; });
         depositsBtn.setOnAction(e -> { depositsView.refresh(); setCenter(depositsView); currentAddAction = depositsView::triggerAddAction; });
         banksBtn.setOnAction(e -> { banksView.refresh(); setCenter(banksView); currentAddAction = null; });
@@ -150,7 +157,7 @@ public class ShellView extends BorderPane {
         VBox.setVgrow(spacer, Priority.ALWAYS);
 
         sidebar.getChildren().addAll(brandRow, searchBox, dashboardBtn, depositsBtn, banksBtn, peopleBtn, interestByYearBtn,
-                expensesBtn, investmentsBtn, netWorthBtn, sendExportBtn, documentsBtn, trashBtn, spacer, settingsBtn);
+                expensesBtn, investmentsBtn, netWorthBtn, sendExportBtn, documentsBtn, trashBtn, spacer, settingsBtn, lockButton);
         return sidebar;
     }
 

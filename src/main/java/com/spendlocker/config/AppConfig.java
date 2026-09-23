@@ -36,6 +36,13 @@ public class AppConfig {
     }
 
     public void set(String key, String value) {
+        // config_value is NOT NULL — a caller clearing a setting (e.g. disconnecting Google:
+        // appConfig.set(KEY_GOOGLE_ACCOUNT_EMAIL, null)) was violating that constraint and
+        // surfacing as "Failed to write config <key>". Treat null as "remove this key" instead.
+        if (value == null) {
+            remove(key);
+            return;
+        }
         try (PreparedStatement ps = conn().prepareStatement(
                 "INSERT INTO app_config (config_key, config_value) VALUES (?, ?) " +
                 "ON CONFLICT(config_key) DO UPDATE SET config_value = excluded.config_value")) {
@@ -44,6 +51,15 @@ public class AppConfig {
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to write config " + key, e);
+        }
+    }
+
+    public void remove(String key) {
+        try (PreparedStatement ps = conn().prepareStatement("DELETE FROM app_config WHERE config_key = ?")) {
+            ps.setString(1, key);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to clear config " + key, e);
         }
     }
 }
